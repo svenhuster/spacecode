@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}Problems - LeetCode SRS{% endblock %}
+
+{% block content %}
+<div class="problems-page">
+    <div class="page-header">
+        <h1>Problem Management</h1>
+        <p class="subtitle">Manage your LeetCode problem collection</p>
+    </div>
+
+    <div class="controls-section">
+        <div class="search-controls">
+            <form method="GET" class="search-form">
+                <input type="text" name="search" value="{{ search }}" placeholder="Search problems..." class="form-input search-input">
+                <select name="difficulty" class="form-select">
+                    <option value="">All Difficulties</option>
+                    <option value="Easy" {% if difficulty == 'Easy' %}selected{% endif %}>Easy</option>
+                    <option value="Medium" {% if difficulty == 'Medium' %}selected{% endif %}>Medium</option>
+                    <option value="Hard" {% if difficulty == 'Hard' %}selected{% endif %}>Hard</option>
+                </select>
+                <button type="submit" class="btn btn-secondary">Filter</button>
+                {% if search or difficulty %}
+                    <a href="{{ url_for('problems') }}" class="btn btn-ghost">Clear</a>
+                {% endif %}
+            </form>
+        </div>
+
+        <div class="add-controls">
+            <button onclick="toggleAddForm()" class="btn btn-primary">Add Problem</button>
+        </div>
+    </div>
+
+    <div class="add-form-container" id="add-form" style="display: none;">
+        <form action="{{ url_for('add_problem') }}" method="POST" class="add-problem-form">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="url">LeetCode URL *</label>
+                    <input type="url" id="url" name="url" required class="form-input" placeholder="https://leetcode.com/problems/...">
+                </div>
+                <div class="form-group">
+                    <label for="title">Title</label>
+                    <input type="text" id="title" name="title" class="form-input" placeholder="Two Sum">
+                </div>
+                <div class="form-group">
+                    <label for="number">Problem Number</label>
+                    <input type="number" id="number" name="number" class="form-input" placeholder="1">
+                </div>
+                <div class="form-group">
+                    <label for="difficulty">Difficulty</label>
+                    <select id="difficulty" name="difficulty" class="form-select">
+                        <option value="">Select...</option>
+                        <option value="Easy">Easy</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Hard">Hard</option>
+                    </select>
+                </div>
+                <div class="form-group form-group-wide">
+                    <label for="tags">Tags (comma-separated)</label>
+                    <input type="text" id="tags" name="tags" class="form-input" placeholder="Array, Hash Table, Math">
+                </div>
+                <div class="form-group form-group-wide">
+                    <label for="notes">Notes</label>
+                    <textarea id="notes" name="notes" class="form-textarea" placeholder="Personal notes about this problem..."></textarea>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Add Problem</button>
+                <button type="button" onclick="toggleAddForm()" class="btn btn-secondary">Cancel</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="problems-section">
+        {% if problems_with_stats %}
+            <div class="problems-grid">
+                {% for problem, stats in problems_with_stats %}
+                    <div class="problem-card">
+                        <div class="problem-header">
+                            <div class="problem-title">
+                                <h3>{{ problem.title or problem.slug.replace('-', ' ').title() }}</h3>
+                                {% if problem.number %}
+                                    <span class="problem-number">#{{ problem.number }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="problem-actions">
+                                <button onclick="deleteProblem({{ problem.id }})" class="btn-icon delete-btn" title="Delete">
+                                    ×
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="problem-meta">
+                            {% if problem.difficulty %}
+                                <span class="difficulty {{ problem.difficulty.lower() }}">{{ problem.difficulty }}</span>
+                            {% endif %}
+                            {% if stats and stats.is_due() %}
+                                <span class="status due">Due</span>
+                            {% elif stats and stats.last_reviewed %}
+                                <span class="status reviewed">Reviewed</span>
+                            {% else %}
+                                <span class="status new">New</span>
+                            {% endif %}
+                        </div>
+
+                        {% if problem.tags %}
+                            <div class="problem-tags">
+                                {% for tag in problem.tags.split(',')[:3] %}
+                                    <span class="tag">{{ tag.strip() }}</span>
+                                {% endfor %}
+                                {% if problem.tags.split(',')|length > 3 %}
+                                    <span class="tag-more">+{{ problem.tags.split(',')|length - 3 }}</span>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        {% if stats %}
+                            <div class="problem-stats">
+                                <div class="stat">
+                                    <strong>Reviews:</strong> {{ stats.total_reviews }}
+                                </div>
+                                {% if stats.average_rating %}
+                                    <div class="stat">
+                                        <strong>Avg Rating:</strong> {{ "%.1f"|format(stats.average_rating) }}/5
+                                    </div>
+                                {% endif %}
+                                {% if stats.next_review %}
+                                    <div class="stat">
+                                        <strong>Next Review:</strong>
+                                        {% if stats.is_due() %}
+                                            <span class="due">Due now</span>
+                                        {% else %}
+                                            {{ stats.next_review.strftime('%m/%d %H:%M') }}
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        <div class="problem-link">
+                            <a href="{{ problem.url }}" target="_blank" class="btn btn-ghost btn-small">
+                                Open in LeetCode ↗
+                            </a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">📝</div>
+                <h3>No problems found</h3>
+                {% if search or difficulty %}
+                    <p>Try adjusting your search filters.</p>
+                    <a href="{{ url_for('problems') }}" class="btn btn-secondary">Show All Problems</a>
+                {% else %}
+                    <p>Add some LeetCode problems to get started!</p>
+                    <button onclick="toggleAddForm()" class="btn btn-primary">Add Your First Problem</button>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleAddForm() {
+    const form = document.getElementById('add-form');
+    if (form.style.display === 'none') {
+        form.style.display = 'block';
+        document.getElementById('url').focus();
+    } else {
+        form.style.display = 'none';
+    }
+}
+
+function deleteProblem(problemId) {
+    if (!confirm('Are you sure you want to delete this problem?')) {
+        return;
+    }
+
+    fetch(`/problems/${problemId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error deleting problem: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error deleting problem');
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}Statistics - LeetCode SRS{% endblock %}
+
+{% block content %}
+<div class="stats-page">
+    <div class="page-header">
+        <h1>Study Statistics</h1>
+        <p class="subtitle">Track your LeetCode preparation progress</p>
+    </div>
+
+    <div class="stats-overview">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.total_problems }}</div>
+                <div class="stat-label">Total Problems</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.total_reviews }}</div>
+                <div class="stat-label">Total Reviews</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ "%.1f"|format(stats.average_rating) }}</div>
+                <div class="stat-label">Average Rating</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ stats.problems_mastered }}</div>
+                <div class="stat-label">Mastered</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="stats-sections">
+        <div class="section">
+            <h2>Problem Distribution</h2>
+            <div class="distribution-grid">
+                <div class="distribution-card">
+                    <h3>By Difficulty</h3>
+                    <div class="distribution-items">
+                        <div class="distribution-item">
+                            <span class="difficulty easy">Easy</span>
+                            <span class="count">{{ stats.by_difficulty.Easy }}</span>
+                        </div>
+                        <div class="distribution-item">
+                            <span class="difficulty medium">Medium</span>
+                            <span class="count">{{ stats.by_difficulty.Medium }}</span>
+                        </div>
+                        <div class="distribution-item">
+                            <span class="difficulty hard">Hard</span>
+                            <span class="count">{{ stats.by_difficulty.Hard }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="distribution-card">
+                    <h3>By Rating</h3>
+                    <div class="distribution-items">
+                        <div class="distribution-item">
+                            <span class="rating-label">Failed (0)</span>
+                            <span class="count">{{ stats.by_rating[0] }}</span>
+                        </div>
+                        <div class="distribution-item">
+                            <span class="rating-label">Very Hard (1)</span>
+                            <span class="count">{{ stats.by_rating[1] }}</span>
+                        </div>
+                        <div class="distribution-item">
+                            <span class="rating-label">Hard (2)</span>
+                            <span class="count">{{ stats.by_rating[2] }}</span>
+                        </div>
+                        <div class="distribution-item">
+                            <span class="rating-label">Medium (3)</span>
+                            <span class="count">{{ stats.by_rating[3] }}</span>
+                        </div>
+                        <div class="distribution-item">
+                            <span class="rating-label">Good (4)</span>
+                            <span class="count">{{ stats.by_rating[4] }}</span>
+                        </div>
+                        <div class="distribution-item">
+                            <span class="rating-label">Easy (5)</span>
+                            <span class="count">{{ stats.by_rating[5] }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="distribution-card">
+                    <h3>Review Schedule</h3>
+                    <div class="distribution-items">
+                        <div class="distribution-item urgent">
+                            <span class="schedule-label">Due Now</span>
+                            <span class="count">{{ stats.due_now }}</span>
+                        </div>
+                        <div class="distribution-item warning">
+                            <span class="schedule-label">Due Today</span>
+                            <span class="count">{{ stats.due_today }}</span>
+                        </div>
+                        <div class="distribution-item info">
+                            <span class="schedule-label">Due This Week</span>
+                            <span class="count">{{ stats.due_this_week }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Recent Sessions</h2>
+            {% if sessions %}
+                <div class="sessions-table">
+                    <div class="table-header">
+                        <div>Date</div>
+                        <div>Duration</div>
+                        <div>Problems</div>
+                    </div>
+                    {% for session in sessions %}
+                        <div class="table-row">
+                            <div class="session-date">
+                                {{ session.completed_at.strftime('%m/%d/%Y %H:%M') }}
+                            </div>
+                            <div class="session-duration">
+                                {% if session.get_duration_minutes() %}
+                                    {{ "%.0f"|format(session.get_duration_minutes()) }} min
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </div>
+                            <div class="session-problems">
+                                {{ session.problems_reviewed }}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <p>No completed sessions yet. Start practicing to see your session history!</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="section">
+            <h2>Recent Reviews</h2>
+            {% if recent_reviews %}
+                <div class="reviews-list">
+                    {% for review, problem in recent_reviews %}
+                        <div class="review-item">
+                            <div class="review-info">
+                                <div class="review-problem">
+                                    <strong>{{ problem.title or problem.slug.replace('-', ' ').title() }}</strong>
+                                    {% if problem.difficulty %}
+                                        <span class="difficulty {{ problem.difficulty.lower() }}">{{ problem.difficulty }}</span>
+                                    {% endif %}
+                                </div>
+                                <div class="review-details">
+                                    <span class="review-rating rating-{{ review.rating }}">
+                                        {% if review.rating == 0 %}Failed
+                                        {% elif review.rating == 1 %}Very Hard
+                                        {% elif review.rating == 2 %}Hard
+                                        {% elif review.rating == 3 %}Medium
+                                        {% elif review.rating == 4 %}Good
+                                        {% elif review.rating == 5 %}Easy
+                                        {% endif %}
+                                    </span>
+                                    <span class="review-date">{{ review.reviewed_at.strftime('%m/%d %H:%M') }}</span>
+                                    {% if review.time_spent_seconds %}
+                                        <span class="review-time">{{ "%.0f"|format(review.time_spent_seconds / 60) }}m</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <p>No reviews yet. Start a practice session to see your review history!</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

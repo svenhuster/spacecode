@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Bookmarklet - LeetCode SRS{% endblock %}
+
+{% block content %}
+<div class="bookmarklet-page">
+    <div class="page-header">
+        <h1>LeetCode SRS Bookmarklet</h1>
+        <p class="subtitle">One-click problem adding from any LeetCode page</p>
+    </div>
+
+    <div class="bookmarklet-section">
+        <div class="installation-card">
+            <h2>📌 Installation</h2>
+            <p>Drag this bookmarklet to your bookmarks bar:</p>
+
+            <div class="bookmarklet-link-container">
+                <a href="javascript:(function(){function showNotification(message,type='success'){const existing=document.querySelector('.leetcode-srs-notification');if(existing)existing.remove();const notification=document.createElement('div');notification.className='leetcode-srs-notification';notification.style.cssText=`position:fixed;top:20px;right:20px;background:${type==='success'?'#4CAF50':'#f44336'};color:white;padding:12px 20px;border-radius:6px;font-family:Arial,sans-serif;font-size:14px;z-index:10000;box-shadow:0 4px 12px rgba(0,0,0,0.15);max-width:300px;animation:slideIn 0.3s ease-out;`;const style=document.createElement('style');style.textContent='@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }';document.head.appendChild(style);const icon=type==='success'?'✅':'❌';notification.textContent=`${icon} ${message}`;document.body.appendChild(notification);setTimeout(()=>{if(notification.parentElement){notification.style.animation='slideIn 0.3s ease-out reverse';setTimeout(()=>notification.remove(),300)}},3000)}const url=window.location.href;if(!url.includes('leetcode.com/problems/')){showNotification('Please navigate to a LeetCode problem page first!','error');return}function extractFromNextData(){try{const nextDataScript=document.querySelector('#__NEXT_DATA__');if(!nextDataScript)throw new Error('__NEXT_DATA__ not found');const data=JSON.parse(nextDataScript.textContent);const question=data.props?.pageProps?.dehydratedState?.queries?.[0]?.state?.data?.question;if(!question)throw new Error('Question data not found in __NEXT_DATA__');return{title:question.title,number:question.frontendQuestionId?parseInt(question.frontendQuestionId):null,difficulty:question.difficulty,tags:question.topicTags?.map(tag=>tag.name)||[],description:question.content||'',slug:question.titleSlug}}catch(error){console.log('Failed to extract from __NEXT_DATA__:',error);return null}}function fallbackExtraction(){const slugMatch=url.match(/\/problems\/([^\/]+)/);const slug=slugMatch?slugMatch[1]:'';const titleSelectors=['.css-v3d350','[data-cy=question-title]','.question-title','h1','.text-title-large'];let title='';for(const selector of titleSelectors){const element=document.querySelector(selector);if(element&&element.textContent.trim()){title=element.textContent.trim();break}}const numberMatch=title.match(/^(\d+)\./);const number=numberMatch?parseInt(numberMatch[1]):null;if(numberMatch){title=title.replace(/^\d+\.\s*/,'')}const difficultySelectors=['.css-10o4wqw','[data-difficulty]','.difficulty-label','.text-difficulty'];let difficulty='';for(const selector of difficultySelectors){const element=document.querySelector(selector);if(element){const text=element.textContent.trim();if(['Easy','Medium','Hard'].includes(text)){difficulty=text;break}const attr=element.getAttribute('data-difficulty');if(attr&&['Easy','Medium','Hard'].includes(attr)){difficulty=attr;break}}}const tagSelectors=['.topic-tag','.tag','[data-tag]','.css-1hky5w4'];const tags=[];for(const selector of tagSelectors){const elements=document.querySelectorAll(selector);for(const element of elements){const text=element.textContent.trim();if(text&&text.length>0&&text.length<50){tags.push(text)}}if(tags.length>0)break}const descriptionSelectors=['.css-1f1j2yy','.question-content','.content__u3I1','[data-track-load=\"description_content\"]'];let description='';for(const selector of descriptionSelectors){const element=document.querySelector(selector);if(element){const text=element.textContent.trim();if(text.length>100){description=text;break}else if(text.length>description.length){description=text}}}return{title:title||slug.replace(/-/g,' '),number:number,difficulty:difficulty,tags:[...new Set(tags)].filter(tag=>tag.length>0&&!tag.includes('Show')&&!tag.includes('Hide')&&!/^\d+$/.test(tag)),description:description,slug:slug}}const extractedData=extractFromNextData()||fallbackExtraction();const problemData={url:url,title:extractedData.title,slug:extractedData.slug,number:extractedData.number,difficulty:extractedData.difficulty,tags:extractedData.tags,description:extractedData.description};showNotification('📚 Extracting problem data...','success');setTimeout(()=>{sendToSRS(problemData)},500);async function sendToSRS(data){try{const response=await fetch('http://localhost:1234/api/add-problem',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});if(!response.ok){throw new Error(`HTTP error! status: ${response.status}`)}const result=await response.json();if(!result.success){throw new Error(result.error||'Unknown error occurred')}showNotification(result.message||'Problem added successfully!','success')}catch(error){console.error('Error sending to SRS:',error);if(error.message.includes('Failed to fetch')||error.message.includes('NetworkError')){showNotification('❌ Cannot connect to SRS app. Make sure it\\'s running on localhost:1234','error')}else{showNotification(`❌ Error: ${error.message}`,'error')}}}})();" class="bookmarklet-link">
+                    📚 Add to LeetCode SRS
+                </a>
+            </div>
+
+            <div class="installation-steps">
+                <ol>
+                    <li>Make sure your bookmarks bar is visible in your browser</li>
+                    <li>Drag the blue "Add to LeetCode SRS" button above to your bookmarks bar</li>
+                    <li>Navigate to any LeetCode problem page</li>
+                    <li>Click the bookmarklet in your bookmarks bar</li>
+                    <li>The problem will be automatically added to your SRS collection!</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="features-card">
+            <h2>✨ What it extracts</h2>
+            <div class="features-grid">
+                <div class="feature">
+                    <strong>Problem Title</strong>
+                    <span>Automatically captures the problem name</span>
+                </div>
+                <div class="feature">
+                    <strong>Problem Number</strong>
+                    <span>Extracts the LeetCode problem number</span>
+                </div>
+                <div class="feature">
+                    <strong>Difficulty Level</strong>
+                    <span>Easy, Medium, or Hard classification</span>
+                </div>
+                <div class="feature">
+                    <strong>Topic Tags</strong>
+                    <span>All associated tags (Array, DP, etc.)</span>
+                </div>
+                <div class="feature">
+                    <strong>Full Problem Description</strong>
+                    <span>Complete problem statement with examples</span>
+                </div>
+                <div class="feature">
+                    <strong>URL & Slug</strong>
+                    <span>Direct link and problem identifier</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="troubleshooting-card">
+            <h2>🔧 Troubleshooting</h2>
+            <div class="troubleshooting-list">
+                <div class="troubleshooting-item">
+                    <strong>Bookmarklet doesn't work?</strong>
+                    <p>Make sure your LeetCode SRS app is running at <code>http://localhost:1234</code></p>
+                </div>
+                <div class="troubleshooting-item">
+                    <strong>Can't drag the bookmarklet?</strong>
+                    <p>Right-click the bookmarklet button and select "Bookmark this link" or "Add to bookmarks"</p>
+                </div>
+                <div class="troubleshooting-item">
+                    <strong>Not extracting problem data?</strong>
+                    <p>LeetCode may have updated their page structure. The bookmarklet will still add the URL and you can edit details manually.</p>
+                </div>
+                <div class="troubleshooting-item">
+                    <strong>CORS or network errors?</strong>
+                    <p>Ensure the Flask app is running and accessible. Some browsers may block cross-origin requests.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-card">
+            <h2>🎬 How it works</h2>
+            <div class="demo-steps">
+                <div class="demo-step">
+                    <div class="demo-number">1</div>
+                    <div class="demo-content">
+                        <strong>Visit any LeetCode problem</strong>
+                        <p>Navigate to a problem page like leetcode.com/problems/two-sum/</p>
+                    </div>
+                </div>
+                <div class="demo-step">
+                    <div class="demo-number">2</div>
+                    <div class="demo-content">
+                        <strong>Click the bookmarklet</strong>
+                        <p>Click "Add to LeetCode SRS" in your bookmarks bar</p>
+                    </div>
+                </div>
+                <div class="demo-step">
+                    <div class="demo-number">3</div>
+                    <div class="demo-content">
+                        <strong>See confirmation</strong>
+                        <p>A green notification appears confirming the problem was added</p>
+                    </div>
+                </div>
+                <div class="demo-step">
+                    <div class="demo-number">4</div>
+                    <div class="demo-content">
+                        <strong>Start practicing!</strong>
+                        <p>Return to your SRS app to begin spaced repetition practice</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="manual-alternative">
+        <h3>Prefer manual entry?</h3>
+        <p>You can also add problems manually on the <a href="{{ url_for('problems') }}">Problems page</a>.</p>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Check if the SRS app is running
+fetch('http://localhost:1234/api/due-problems')
+    .then(response => {
+        if (response.ok) {
+            document.querySelector('.bookmarklet-link').style.opacity = '1';
+        }
+    })
+    .catch(error => {
+        const warning = document.createElement('div');
+        warning.className = 'flash-message flash-warning';
+        warning.innerHTML = `
+            <strong>Warning:</strong> LeetCode SRS app doesn't appear to be running on localhost:1234.
+            Start the app first, then reload this page.
+            <button onclick="this.parentElement.remove()" class="flash-close">&times;</button>
+        `;
+        document.querySelector('.main-content').insertBefore(warning, document.querySelector('.bookmarklet-page'));
+    });
+</script>
+{% endblock %}
