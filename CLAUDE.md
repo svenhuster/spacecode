@@ -51,25 +51,32 @@ python3 app.py      # Start server on http://localhost:1234
 
 1. **Advanced Bookmarklet Integration**:
    - Extracts problem data from LeetCode's `__NEXT_DATA__` JSON for reliable metadata
+   - Searches through all queries to find the correct question data
    - Captures full problem descriptions, difficulty, tags, and examples
-   - Falls back to DOM scraping if JSON extraction fails
-   - Intelligent duplicate detection by problem number and normalized URLs
+   - Enhanced problem number extraction from multiple JSON fields
+   - **Refresh-Safe**: Can be clicked multiple times to update metadata without losing progress
 
-2. **Duplicate Prevention**:
+2. **Smart Update System**:
+   - Single `/api/add-problem` endpoint handles both creation and updates
+   - Preserves all review data, stats, and spaced repetition progress
+   - Only updates metadata fields (title, difficulty, tags, description)
+   - Returns clear messages indicating whether problem was created or updated
+
+3. **Duplicate Prevention**:
    - URL normalization removes query parameters and trailing slashes
    - Problem number extraction from URLs for reliable duplicate detection
    - Comprehensive duplicate checking by both URL and problem number
    - Cleanup script available to merge existing duplicates
 
-3. **Session Management**: Supports pausing/resuming practice sessions
+4. **Session Management**: Supports pausing/resuming practice sessions
 
-4. **Keyboard Shortcuts**:
+5. **Keyboard Shortcuts**:
    - Rating problems with keys 0-5 during practice
    - Global navigation: Alt+D (Dashboard), Alt+P (Practice), Alt+M (Problems), Alt+S (Stats)
 
-5. **Analytics**: Comprehensive stats tracking performance and mastery levels
+6. **Analytics**: Comprehensive stats tracking performance and mastery levels
 
-6. **Dark Theme**: Modern dark UI optimized for coding sessions
+7. **Dark Theme**: Modern dark UI optimized for coding sessions
 
 ## Database Initialization & Maintenance
 

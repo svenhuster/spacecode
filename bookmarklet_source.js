@@ -52,13 +52,44 @@
             if (!nextDataScript) throw new Error('__NEXT_DATA__ not found');
 
             const data = JSON.parse(nextDataScript.textContent);
-            const question = data.props?.pageProps?.dehydratedState?.queries?.[0]?.state?.data?.question;
 
-            if (!question) throw new Error('Question data not found in __NEXT_DATA__');
+            // Search through all queries to find the one with question data
+            const queries = data.props?.pageProps?.dehydratedState?.queries || [];
+            let question = null;
 
-            return {
+            for (const query of queries) {
+                if (query.state?.data?.question) {
+                    question = query.state.data.question;
+                    console.log('Found question data in query:', query.queryKey);
+                    break;
+                }
+            }
+
+            if (!question) throw new Error('Question data not found in any query');
+
+            // Try different field names for question ID
+            let questionNumber = null;
+            if (question.frontendQuestionId) {
+                questionNumber = parseInt(question.frontendQuestionId);
+            } else if (question.questionFrontendId) {
+                questionNumber = parseInt(question.questionFrontendId);
+            } else if (question.questionId) {
+                questionNumber = parseInt(question.questionId);
+            } else if (question.id) {
+                questionNumber = parseInt(question.id);
+            }
+
+            // If still no number, try extracting from title
+            if (!questionNumber && question.title) {
+                const titleMatch = question.title.match(/^(\d+)\./);
+                if (titleMatch) {
+                    questionNumber = parseInt(titleMatch[1]);
+                }
+            }
+
+            const extractedData = {
                 title: question.title,
-                number: question.frontendQuestionId ? parseInt(question.frontendQuestionId) : null,
+                number: questionNumber,
                 difficulty: question.difficulty,
                 tags: question.topicTags?.map(tag => tag.name) || [],
                 description: question.content || '',
@@ -70,6 +101,9 @@
                 constraints: question.constraints || '',
                 acRate: question.acRate || 0
             };
+
+            console.log('Extracted data:', extractedData);
+            return extractedData;
         } catch (error) {
             console.log('Failed to extract from __NEXT_DATA__:', error);
             return null;
@@ -93,30 +127,58 @@
             }
         }
 
-        // Extract problem number from title
-        const numberMatch = title.match(/^(\d+)\./);
-        const number = numberMatch ? parseInt(numberMatch[1]) : null;
-        if (numberMatch) {
+        // Extract problem number from title or URL
+        let number = null;
+        const titleMatch = title.match(/^(\d+)\./);
+        if (titleMatch) {
+            number = parseInt(titleMatch[1]);
             title = title.replace(/^\d+\.\s*/, '');
+        } else {
+            // Try extracting from URL if not in title
+            const urlMatch = url.match(/\/problems\/(\d+)-/);
+            if (urlMatch) {
+                number = parseInt(urlMatch[1]);
+            }
         }
 
-        // Extract difficulty
-        const difficultySelectors = ['.css-10o4wqw', '[data-difficulty]', '.difficulty-label', '.text-difficulty'];
+        // Extract difficulty with more comprehensive selectors
+        const difficultySelectors = [
+            '.css-10o4wqw', // Old selector
+            '[data-difficulty]',
+            '.difficulty-label',
+            '.text-difficulty',
+            '.text-difficulty-easy',
+            '.text-difficulty-medium',
+            '.text-difficulty-hard',
+            '.text-green-s', // Easy difficulty
+            '.text-yellow', // Medium difficulty
+            '.text-pink', // Hard difficulty
+            '.text-label-1', // New LeetCode styling
+            '.text-label-2',
+            '.text-label-3',
+            '[class*="difficulty"]', // Any class containing "difficulty"
+            '[class*="Difficulty"]'
+        ];
+
         let difficulty = '';
         for (const selector of difficultySelectors) {
-            const element = document.querySelector(selector);
-            if (element) {
+            const elements = document.querySelectorAll(selector);
+            for (const element of elements) {
                 const text = element.textContent.trim();
                 if (['Easy', 'Medium', 'Hard'].includes(text)) {
                     difficulty = text;
+                    console.log(`Found difficulty "${text}" using selector: ${selector}`);
                     break;
                 }
+                // Check data attributes
                 const attr = element.getAttribute('data-difficulty');
                 if (attr && ['Easy', 'Medium', 'Hard'].includes(attr)) {
                     difficulty = attr;
+                    console.log(`Found difficulty "${attr}" in data-difficulty attribute`);
                     break;
                 }
             }
+            if (difficulty) break;
         }
 
         // Extract tags

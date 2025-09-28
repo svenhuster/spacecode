@@ -400,9 +400,53 @@ def api_add_problem():
         # Check if problem already exists
         existing = check_duplicate_problem(normalized_url, number)
         if existing:
+            # Update existing problem with new metadata (preserving all progress data)
+            updated_fields = []
+
+            # Update title if new one provided and different
+            if data.get('title') and data.get('title') != existing.title:
+                existing.title = data.get('title')
+                updated_fields.append('title')
+
+            # Update difficulty if new one provided and current is missing/different
+            if data.get('difficulty') and data.get('difficulty') != existing.difficulty:
+                existing.difficulty = data.get('difficulty')
+                updated_fields.append('difficulty')
+
+            # Update tags if new ones provided and different
+            if data.get('tags'):
+                new_tags = ','.join(data.get('tags')) if isinstance(data.get('tags'), list) else data.get('tags')
+                if new_tags != existing.tags:
+                    existing.tags = new_tags
+                    updated_fields.append('tags')
+
+            # Update description if new one provided and different/missing
+            if data.get('description') and data.get('description') != existing.description:
+                existing.description = data.get('description')
+                updated_fields.append('description')
+
+            # Always update URL to normalized version
+            if normalized_url != existing.url:
+                existing.url = normalized_url
+                updated_fields.append('url')
+
+            # Update problem number if we extracted one and it's missing
+            if number and not existing.number:
+                existing.number = number
+                updated_fields.append('number')
+
+            # Commit updates if any
+            if updated_fields:
+                db.session.commit()
+                message = f'Problem updated: {", ".join(updated_fields)} (#{existing.number}: {existing.title})'
+            else:
+                message = f'Problem already up to date (#{existing.number}: {existing.title})'
+
             return jsonify({
                 'success': True,
-                'message': f'Problem already exists (#{existing.number}: {existing.title})',
+                'message': message,
+                'updated_fields': updated_fields,
+                'action': 'updated',
                 'problem': existing.to_dict()
             })
 
@@ -427,7 +471,8 @@ def api_add_problem():
 
         return jsonify({
             'success': True,
-            'message': 'Problem added successfully!',
+            'message': f'Problem created successfully! (#{problem.number}: {problem.title})',
+            'action': 'created',
             'problem': problem.to_dict()
         })
 
