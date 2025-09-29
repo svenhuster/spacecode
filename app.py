@@ -3,12 +3,17 @@
 import os
 import threading
 import time
+import shutil
+import glob
+import sqlite3
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session
 from flask_cors import CORS
 from datetime import datetime, timedelta
 import json
 import re
 from urllib.parse import urlparse, parse_qs
+from alembic.config import Config
+from alembic import command
 
 from models import db, Problem, Review, Session, ProblemStats
 from scheduler import get_session_problems, get_study_stats, calculate_next_review
@@ -67,6 +72,85 @@ def check_duplicate_problem(url, number=None):
 
     return None
 
+def create_database_backup(data_dir):
+    """Create a backup of the SQLite database on app startup"""
+    db_path = os.path.join(data_dir, 'leetcode.db')
+
+    # Only backup if database exists
+    if not os.path.exists(db_path):
+        return
+
+    # Create backups directory
+    backup_dir = os.path.join(data_dir, 'backups')
+    os.makedirs(backup_dir, exist_ok=True)
+
+    # Create timestamped backup filename
+    timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    backup_filename = f'leetcode_backup_{timestamp}.db'
+    backup_path = os.path.join(backup_dir, backup_filename)
+
+    try:
+        # Copy database file
+        shutil.copy2(db_path, backup_path)
+        print(f"✓ Database backup created: {backup_path}")
+
+        # Clean up old backups (keep last 30)
+        max_backups = int(os.environ.get('SPACECODE_MAX_BACKUPS', 30))
+        backup_files = sorted(glob.glob(os.path.join(backup_dir, 'leetcode_backup_*.db')))
+
+        if len(backup_files) > max_backups:
+            files_to_delete = backup_files[:-max_backups]
+            for old_backup in files_to_delete:
+                os.remove(old_backup)
+                print(f"✓ Cleaned up old backup: {os.path.basename(old_backup)}")
+
+    except Exception as e:
+        print(f"⚠ Failed to create database backup: {e}")
+
+def run_alembic_migrations(database_url):
+    """
+    Run Alembic database migrations automatically on app startup.
+    This replaces the manual migration system with proper version control.
+    """
+    try:
+        # Try to find alembic.ini in multiple locations
+        # 1. Directory containing this file (for development)
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+        alembic_cfg_path = os.path.join(app_dir, 'alembic.ini')
+
+        # 2. Current working directory (for nix run)
+        if not os.path.exists(alembic_cfg_path):
+            alembic_cfg_path = os.path.join(os.getcwd(), 'alembic.ini')
+
+        # 3. Check if we found it
+        if not os.path.exists(alembic_cfg_path):
+            print("⚠ Alembic configuration not found - skipping migrations")
+            return
+
+        # Create Alembic config
+        alembic_cfg = Config(alembic_cfg_path)
+
+        # Set the database URL directly to avoid env.py recursion
+        alembic_cfg.set_main_option('sqlalchemy.url', database_url)
+
+        # Set a flag to indicate we're running from app startup
+        os.environ['ALEMBIC_FROM_APP'] = 'true'
+
+        print("🔄 Running database migrations with Alembic...")
+
+        # Apply all pending migrations
+        command.upgrade(alembic_cfg, 'head')
+
+        print("✅ Database migrations completed successfully!")
+
+    except Exception as e:
+        print(f"⚠ Failed to run database migrations: {e}")
+        # Don't fail startup on migration errors - let the app run with existing schema
+        print("⚠ Continuing with existing database schema")
+    finally:
+        # Clean up environment variable
+        os.environ.pop('ALEMBIC_FROM_APP', None)
+
 def create_app():
     app = Flask(__name__)
     app.config['SECRET_KEY'] = 'leetcode-srs-secret-key-change-in-production'
@@ -84,6 +168,10 @@ def create_app():
 
     data_dir = os.environ.get('SPACECODE_DATA_DIR', default_data_dir)
     os.makedirs(data_dir, exist_ok=True)
+
+    # Create database backup BEFORE Flask touches the database
+    create_database_backup(data_dir)
+
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(data_dir, "leetcode.db")}'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -91,9 +179,12 @@ def create_app():
     db.init_app(app)
     CORS(app)
 
-    # Create database tables if they don't exist
+    # Create database tables if they don't exist and run migrations
     with app.app_context():
         db.create_all()
+
+        # Run Alembic migrations with database URL
+        run_alembic_migrations(app.config['SQLALCHEMY_DATABASE_URI'])
 
     return app
 
@@ -121,6 +212,47 @@ def dashboard():
     return render_template('index.html', stats=stats, recent_sessions=recent_sessions, incomplete_session=incomplete_session)
 
 @app.route('/session')
+def session_config():
+    """Session configuration page"""
+    problems_with_stats = db.session.query(Problem, ProblemStats).outerjoin(ProblemStats).filter(Problem.is_active == True).all()
+    stats = get_study_stats(problems_with_stats)
+
+    # Check for incomplete sessions
+    incomplete_session = None
+    if 'current_session_id' in session:
+        incomplete_session = Session.query.filter(
+            Session.id == session['current_session_id'],
+            Session.status.in_(['active', 'paused'])
+        ).first()
+
+    return render_template('session_config.html', stats=stats, incomplete_session=incomplete_session)
+
+@app.route('/session/start', methods=['POST'])
+def start_session():
+    """Start a new practice session with specified duration"""
+    duration_minutes = int(request.form.get('duration_minutes', 45))
+
+    # Validate duration
+    if duration_minutes < 5 or duration_minutes > 300:
+        flash('Session duration must be between 5 and 300 minutes', 'error')
+        return redirect(url_for('session_config'))
+
+    # Create new session
+    new_session = Session(
+        status='active',
+        max_duration_minutes=duration_minutes,
+        total_time_seconds=0
+    )
+    db.session.add(new_session)
+    db.session.flush()  # This assigns the ID without committing
+    session_id = new_session.id  # Store ID while object is still attached
+    db.session.commit()  # Now commit the transaction
+
+    session['current_session_id'] = session_id  # Use the stored ID
+
+    return redirect(url_for('practice_session'))
+
+@app.route('/session/practice')
 def practice_session():
     """Practice session page"""
     current_session = None
@@ -132,23 +264,29 @@ def practice_session():
             Session.status.in_(['active', 'paused'])
         ).first()
 
-    # If no current session or session is completed/abandoned, start a new one
+    # If no current session, redirect to config
     if current_session is None:
-        new_session = Session(status='active')
-        db.session.add(new_session)
-        db.session.commit()
-        session['current_session_id'] = new_session.id
-        current_session = new_session
-    else:
-        # Resume existing session by setting status to active
-        if current_session.status == 'paused':
-            current_session.status = 'active'
-            current_session.paused_at = None
-            db.session.commit()
+        flash('No active session found. Please start a new session.', 'info')
+        return redirect(url_for('session_config'))
 
-    # Get problems for this session
+    # Check if time expired
+    if current_session.is_time_expired():
+        current_session.status = 'completed'
+        current_session.completed_at = datetime.utcnow()
+        db.session.commit()
+        session.pop('current_session_id', None)
+        flash('Your session time has expired! Great work!', 'success')
+        return redirect(url_for('dashboard'))
+
+    # Resume existing session by setting status to active
+    if current_session.status == 'paused':
+        current_session.status = 'active'
+        current_session.paused_at = None
+        db.session.commit()
+
+    # Get next problem for this session
     problems_with_stats = db.session.query(Problem, ProblemStats).outerjoin(ProblemStats).filter(Problem.is_active == True).all()
-    session_problems = get_session_problems(problems_with_stats, session_size=10)
+    session_problems = get_session_problems(problems_with_stats, session_size=1)
 
     if not session_problems:
         flash('No problems due for review right now! Great job!', 'success')
@@ -171,6 +309,21 @@ def review_problem():
         return jsonify({'error': 'Rating must be between 0 and 5'}), 400
 
     try:
+        # Get current session
+        current_session = None
+        if 'current_session_id' in session:
+            current_session = Session.query.get(session['current_session_id'])
+
+        if not current_session or current_session.status != 'active':
+            return jsonify({'error': 'No active session found'}), 400
+
+        # Update session time tracking
+        current_session.total_time_seconds += time_spent
+        current_session.problems_reviewed += 1
+
+        # Check if session time limit exceeded
+        session_expired = current_session.is_time_expired()
+
         # Get or create problem stats
         problem = Problem.query.get(problem_id)
         if not problem:
@@ -186,26 +339,31 @@ def review_problem():
             problem_id=problem_id,
             rating=rating,
             time_spent_seconds=time_spent,
-            session_id=session.get('current_session_id')
+            session_id=current_session.id
         )
         db.session.add(review)
 
         # Update problem stats
         stats.update_stats(rating)
 
-        # Update session
-        if 'current_session_id' in session:
-            current_session = Session.query.get(session['current_session_id'])
-            if current_session and current_session.status == 'active':
-                current_session.problems_reviewed += 1
-
         db.session.commit()
 
-        return jsonify({
+        response_data = {
             'success': True,
             'next_review': stats.next_review.isoformat(),
-            'interval_hours': stats.interval_hours
-        })
+            'interval_hours': stats.interval_hours,
+            'session_time_remaining': current_session.get_remaining_seconds(),
+            'session_expired': session_expired
+        }
+
+        # If session expired, complete it
+        if session_expired:
+            current_session.status = 'completed'
+            current_session.completed_at = datetime.utcnow()
+            db.session.commit()
+            response_data['session_completed'] = True
+
+        return jsonify(response_data)
 
     except Exception as e:
         db.session.rollback()
@@ -390,6 +548,42 @@ def api_due_problems():
     return jsonify({
         'problems': [p.to_dict() for p in session_problems],
         'count': len(session_problems)
+    })
+
+@app.route('/session/next-problem')
+def get_next_session_problem():
+    """API endpoint to get the next problem for the current session"""
+    # Check if user has active session
+    if 'current_session_id' not in session:
+        return jsonify({'error': 'No active session'}), 400
+
+    current_session = Session.query.get(session['current_session_id'])
+    if not current_session or current_session.status != 'active':
+        return jsonify({'error': 'No active session'}), 400
+
+    # Check if session time expired
+    if current_session.is_time_expired():
+        current_session.status = 'completed'
+        current_session.completed_at = datetime.utcnow()
+        db.session.commit()
+        session.pop('current_session_id', None)
+        return jsonify({'session_expired': True}), 200
+
+    # Get next problem using improved scheduler
+    problems_with_stats = db.session.query(Problem, ProblemStats).outerjoin(ProblemStats).filter(Problem.is_active == True).all()
+    next_problems = get_session_problems(problems_with_stats, session_size=1)
+
+    if not next_problems:
+        return jsonify({
+            'no_problems': True,
+            'message': 'No problems available for review right now!'
+        }), 200
+
+    problem = next_problems[0]
+    return jsonify({
+        'success': True,
+        'problem': problem.to_dict(),
+        'session': current_session.to_dict()
     })
 
 @app.route('/api/add-problem', methods=['POST'])

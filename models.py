@@ -80,6 +80,8 @@ class Session(db.Model):
     paused_at = db.Column(db.DateTime)
     status = db.Column(db.String(20), default='active')  # active, paused, completed, abandoned
     problems_reviewed = db.Column(db.Integer, default=0)
+    total_time_seconds = db.Column(db.Integer, default=0)  # Time spent excluding pauses
+    max_duration_minutes = db.Column(db.Integer, default=45)  # User-configured duration
 
     # Relationships
     reviews = db.relationship('Review', backref='session', lazy=True)
@@ -92,13 +94,65 @@ class Session(db.Model):
             'paused_at': self.paused_at.isoformat() if self.paused_at else None,
             'status': self.status,
             'problems_reviewed': self.problems_reviewed,
-            'duration_minutes': self.get_duration_minutes()
+            'total_time_seconds': self.total_time_seconds,
+            'max_duration_minutes': self.max_duration_minutes,
+            'duration_minutes': self.get_duration_minutes(),
+            'remaining_seconds': self.get_remaining_seconds(),
+            'is_time_expired': self.is_time_expired()
         }
 
     def get_duration_minutes(self):
-        if self.completed_at and self.started_at:
-            return (self.completed_at - self.started_at).total_seconds() / 60
+        """Get actual time spent in session (excluding pauses)"""
+        if self.total_time_seconds:
+            return self.total_time_seconds / 60
         return None
+
+    def get_remaining_seconds(self):
+        """Get remaining time in seconds for this session"""
+        # Handle case where columns don't exist yet (during migration)
+        max_duration_minutes = getattr(self, 'max_duration_minutes', None)
+        total_time_seconds = getattr(self, 'total_time_seconds', None)
+
+        if not max_duration_minutes:
+            return None
+
+        max_seconds = max_duration_minutes * 60
+        remaining = max_seconds - (total_time_seconds or 0)
+        return max(0, remaining)
+
+    def is_time_expired(self):
+        """Check if session has exceeded its time limit"""
+        # Handle case where columns don't exist yet (during migration)
+        max_duration_minutes = getattr(self, 'max_duration_minutes', None)
+        total_time_seconds = getattr(self, 'total_time_seconds', None)
+
+        if not max_duration_minutes:
+            return False
+
+        max_seconds = max_duration_minutes * 60
+        return (total_time_seconds or 0) >= max_seconds
+
+    def update_time_spent(self):
+        """Update total_time_seconds based on current session state"""
+        if not self.started_at:
+            return
+
+        now = datetime.utcnow()
+
+        if self.status == 'active':
+            # Calculate time since session started, excluding any paused time
+            session_duration = (now - self.started_at).total_seconds()
+
+            # If we have a paused_at time in the past, subtract that paused duration
+            # Note: This is a simplified approach. For more complex pause/resume tracking,
+            # we would need additional pause tracking tables
+            if self.paused_at:
+                # We're currently active but have been paused before
+                # This gets complex without detailed pause logs, so we'll handle it simply
+                pass
+
+            # For now, we'll track time when reviews are submitted
+            # self.total_time_seconds will be updated in review submissions
 
 class ProblemStats(db.Model):
     __tablename__ = 'problem_stats'

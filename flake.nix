@@ -21,6 +21,7 @@
             flask-cors
             flask-sqlalchemy
             sqlalchemy
+            alembic
           ];
 
           dontBuild = true;
@@ -28,20 +29,29 @@
           installPhase = ''
             mkdir -p $out/share/spacecode
 
-            # Copy source files, excluding development artifacts
-            find . -name "*.py" -o -name "*.html" -o -name "*.css" -o -name "*.js" -o -name "*.sql" | \
-              xargs -I {} cp --parents {} $out/share/spacecode/
+            # Copy all source files including templates and static assets
+            cp -r . $out/share/spacecode/
+
+            # Remove development artifacts
+            rm -rf $out/share/spacecode/.git $out/share/spacecode/.direnv $out/share/spacecode/__pycache__ $out/share/spacecode/result || true
 
             # Copy other important files
             for file in requirements.txt .gitignore README.md; do
               [ -f "$file" ] && cp "$file" $out/share/spacecode/ || true
             done
 
-            # Create wrapper script
+            # Create wrapper script that runs from the current directory
             mkdir -p $out/bin
             cat > $out/bin/spacecode << EOF
 #!/usr/bin/env bash
-exec ${pkgs.python3}/bin/python3 $out/share/spacecode/app.py "\$@"
+# Check if we're in a spacecode project directory
+if [[ -f "./app.py" && -f "./alembic.ini" ]]; then
+  # Run from current directory (development mode)
+  exec ${pkgs.python3}/bin/python3 ./app.py "\$@"
+else
+  # Run from Nix store (packaged mode)
+  exec ${pkgs.python3}/bin/python3 $out/share/spacecode/app.py "\$@"
+fi
 EOF
             chmod +x $out/bin/spacecode
           '';
@@ -69,6 +79,7 @@ EOF
           python312Packages.flask-cors
           python312Packages.requests
           python312Packages.python-dateutil
+          python312Packages.alembic
           sqlite
         ];
       in

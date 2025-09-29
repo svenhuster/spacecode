@@ -7,11 +7,17 @@
     <div class="session-header">
         <h1>Practice Session</h1>
         <div class="session-info">
-            <span class="session-progress">
-                Problem <span id="current-problem">1</span> of {{ problems|length }}
-            </span>
-            <div class="session-timer">
-                <span id="timer">00:00</span>
+            <div class="session-progress">
+                <span id="time-remaining">{{ "%02d:%02d"|format(((session.get_remaining_seconds() or 2700)//60), ((session.get_remaining_seconds() or 2700)%60)) }}</span>
+                <span class="progress-label">remaining</span>
+            </div>
+            <div class="session-stats">
+                <span id="problems-completed">{{ session.problems_reviewed }}</span>
+                <span class="stats-label">problems completed</span>
+            </div>
+            <div class="session-duration">
+                <span id="session-duration">{{ session.max_duration_minutes or 45 }}</span>
+                <span class="duration-label">min session</span>
             </div>
         </div>
     </div>
@@ -38,13 +44,6 @@
                     </a>
                 </div>
 
-                {% if problem.tags %}
-                    <div class="problem-tags">
-                        {% for tag in problem.tags.split(',') %}
-                            <span class="tag">{{ tag.strip() }}</span>
-                        {% endfor %}
-                    </div>
-                {% endif %}
 
                 <div class="rating-section">
                     <h3>How did you do?</h3>
@@ -108,7 +107,7 @@
             </div>
             <div class="complete-actions">
                 <a href="{{ url_for('dashboard') }}" class="btn btn-primary">Back to Dashboard</a>
-                <a href="{{ url_for('practice_session') }}" class="btn btn-secondary">Start New Session</a>
+                <a href="{{ url_for('session_config') }}" class="btn btn-secondary">Start New Session</a>
             </div>
         </div>
     </div>
@@ -116,6 +115,15 @@
 
 <div class="session-progress-bar">
     <div class="progress-fill" id="progress-fill"></div>
+    <div class="progress-text" id="progress-text">
+        {{ "%.0f"|format((((session.total_time_seconds or 0) / ((session.max_duration_minutes or 45) * 60)) * 100)) }}% complete
+    </div>
+</div>
+
+<div class="time-warning" id="time-warning" style="display: none;">
+    <div class="warning-content">
+        ⏰ <strong>5 minutes remaining!</strong> Session will end automatically when time expires.
+    </div>
 </div>
 
 {% endblock %}
@@ -127,16 +135,50 @@ let currentProblemIndex = 0;
 let totalProblems = {{ problems|length }};
 let sessionStartTime = Date.now();
 let problemStartTime = Date.now();
-let reviewedProblems = 0;
+let reviewedProblems = {{ session.problems_reviewed }};
 let sessionData = [];
+let sessionTimeRemaining = {{ session.get_remaining_seconds() or 2700 }};
+let maxDurationSeconds = {{ (session.max_duration_minutes or 45) * 60 }};
+let warningShown = false;
 
-// Timer
+// Timer - Update countdown and progress
 function updateTimer() {
-    const elapsed = Math.floor((Date.now() - problemStartTime) / 1000);
-    const minutes = Math.floor(elapsed / 60);
-    const seconds = elapsed % 60;
-    document.getElementById('timer').textContent =
+    const problemElapsed = Math.floor((Date.now() - problemStartTime) / 1000);
+
+    // Update session time remaining
+    sessionTimeRemaining--;
+
+    if (sessionTimeRemaining <= 0) {
+        // Time's up! Auto-complete session
+        alert('Session time expired! Completing your session.');
+        completeSession();
+        return;
+    }
+
+    // Update countdown display
+    const minutes = Math.floor(sessionTimeRemaining / 60);
+    const seconds = sessionTimeRemaining % 60;
+    document.getElementById('time-remaining').textContent =
         `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+    // Update progress bar
+    const timeProgress = ((maxDurationSeconds - sessionTimeRemaining) / maxDurationSeconds) * 100;
+    document.getElementById('progress-fill').style.width = timeProgress + '%';
+    document.getElementById('progress-text').textContent = Math.round(timeProgress) + '% complete';
+
+    // Show warning at 5 minutes remaining
+    if (sessionTimeRemaining <= 300 && !warningShown) {
+        document.getElementById('time-warning').style.display = 'block';
+        warningShown = true;
+    }
+
+    // Update progress bar color as time runs out
+    const progressBar = document.getElementById('progress-fill');
+    if (sessionTimeRemaining <= 300) {
+        progressBar.style.backgroundColor = '#ff6b6b'; // Red for final 5 minutes
+    } else if (sessionTimeRemaining <= 600) {
+        progressBar.style.backgroundColor = '#ffa726'; // Orange for final 10 minutes
+    }
 }
 
 setInterval(updateTimer, 1000);
@@ -194,6 +236,19 @@ function submitRating(rating) {
                 rating: rating,
                 timeSpent: timeSpent
             });
+
+            // Update session time tracking
+            if (data.session_time_remaining !== undefined) {
+                sessionTimeRemaining = data.session_time_remaining;
+            }
+
+            // Check if session expired
+            if (data.session_expired || data.session_completed) {
+                alert('Session completed! Time limit reached.');
+                completeSession();
+                return;
+            }
+
             nextProblem();
         } else {
             alert('Error submitting review: ' + data.error);
@@ -239,8 +294,8 @@ function nextProblem() {
 }
 
 function updateProgress() {
-    const progress = (reviewedProblems / totalProblems) * 100;
-    document.getElementById('progress-fill').style.width = progress + '%';
+    // Update problems completed count
+    document.getElementById('problems-completed').textContent = reviewedProblems;
 }
 
 function completeSession() {

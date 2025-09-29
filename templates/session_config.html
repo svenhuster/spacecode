@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Configure Session - LeetCode SRS{% endblock %}
+
+{% block content %}
+<div class="session-config-container">
+    <div class="session-config-header">
+        <h1>Start Practice Session</h1>
+        <p class="config-subtitle">Choose your session duration and start practicing!</p>
+    </div>
+
+    <div class="session-config-form">
+        <div class="duration-section">
+            <h3>Session Duration</h3>
+            <div class="duration-presets">
+                <button class="duration-btn" data-minutes="15">
+                    <span class="duration-time">15 min</span>
+                    <span class="duration-label">Quick</span>
+                </button>
+                <button class="duration-btn" data-minutes="30">
+                    <span class="duration-time">30 min</span>
+                    <span class="duration-label">Short</span>
+                </button>
+                <button class="duration-btn selected" data-minutes="45">
+                    <span class="duration-time">45 min</span>
+                    <span class="duration-label">Standard</span>
+                </button>
+                <button class="duration-btn" data-minutes="60">
+                    <span class="duration-time">60 min</span>
+                    <span class="duration-label">Long</span>
+                </button>
+                <button class="duration-btn" data-minutes="90">
+                    <span class="duration-time">90 min</span>
+                    <span class="duration-label">Extended</span>
+                </button>
+            </div>
+
+            <div class="custom-duration">
+                <label for="custom-minutes">Custom Duration (minutes):</label>
+                <input type="number" id="custom-minutes" min="5" max="300" placeholder="e.g., 25">
+                <button id="use-custom-btn" class="btn btn-secondary">Use Custom</button>
+            </div>
+        </div>
+
+        <div class="session-info">
+            <div class="info-card">
+                <div class="info-icon">📊</div>
+                <div class="info-content">
+                    <h4>Due Problems</h4>
+                    <p id="due-count">{{ stats.due_now }} problems ready for review</p>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <div class="info-icon">⏱️</div>
+                <div class="info-content">
+                    <h4>Selected Duration</h4>
+                    <p id="selected-duration">45 minutes</p>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <div class="info-icon">🎯</div>
+                <div class="info-content">
+                    <h4>Estimated Coverage</h4>
+                    <p id="estimated-problems">~8-12 problems</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="session-actions">
+            <form id="session-start-form" action="{{ url_for('start_session') }}" method="POST">
+                <input type="hidden" id="duration-input" name="duration_minutes" value="45">
+                <button type="submit" class="btn btn-primary btn-large">
+                    🚀 Start Session
+                </button>
+            </form>
+
+            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+                ← Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    {% if incomplete_session %}
+    <div class="incomplete-session-notice">
+        <div class="notice-content">
+            <h4>📋 Resume Previous Session</h4>
+            <p>You have an incomplete {{ incomplete_session.max_duration_minutes or 45 }}-minute session with {{ incomplete_session.problems_reviewed }} problems completed.</p>
+            <div class="notice-actions">
+                <a href="{{ url_for('practice_session') }}" class="btn btn-primary">Resume Session</a>
+                <form action="{{ url_for('abandon_session') }}" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to abandon your current session?')">
+                        Abandon Session
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let selectedMinutes = 45;
+
+// Load saved preference
+const savedDuration = localStorage.getItem('leetcode_session_duration');
+if (savedDuration) {
+    selectedMinutes = parseInt(savedDuration);
+    updateSelectedDuration(selectedMinutes);
+}
+
+// Duration preset buttons
+document.querySelectorAll('.duration-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const minutes = parseInt(this.dataset.minutes);
+        updateSelectedDuration(minutes);
+    });
+});
+
+// Custom duration
+document.getElementById('use-custom-btn').addEventListener('click', function() {
+    const customMinutes = parseInt(document.getElementById('custom-minutes').value);
+    if (customMinutes && customMinutes >= 5 && customMinutes <= 300) {
+        updateSelectedDuration(customMinutes);
+        document.getElementById('custom-minutes').value = '';
+    } else {
+        alert('Please enter a duration between 5 and 300 minutes');
+    }
+});
+
+// Enter key in custom input
+document.getElementById('custom-minutes').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        document.getElementById('use-custom-btn').click();
+    }
+});
+
+function updateSelectedDuration(minutes) {
+    selectedMinutes = minutes;
+
+    // Update UI
+    document.querySelectorAll('.duration-btn').forEach(btn => btn.classList.remove('selected'));
+    document.querySelector(`[data-minutes="${minutes}"]`)?.classList.add('selected');
+
+    document.getElementById('selected-duration').textContent = `${minutes} minutes`;
+    document.getElementById('duration-input').value = minutes;
+
+    // Update estimated problems (rough estimate: 4-6 minutes per problem)
+    const minProblems = Math.floor(minutes / 6);
+    const maxProblems = Math.floor(minutes / 4);
+    document.getElementById('estimated-problems').textContent = `~${minProblems}-${maxProblems} problems`;
+
+    // Save preference
+    localStorage.setItem('leetcode_session_duration', minutes);
+}
+
+// Initialize with saved or default duration
+updateSelectedDuration(selectedMinutes);
+
+// Form submission
+document.getElementById('session-start-form').addEventListener('submit', function(e) {
+    // Additional validation can go here
+    console.log('Starting session with duration:', selectedMinutes, 'minutes');
+});
+</script>
+{% endblock %}
