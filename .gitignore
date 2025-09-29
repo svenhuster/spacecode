@@ -54,3 +54,15 @@ test_*.py
 .direnv/
 result
 result-*
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Flask session files
+flask_session/
+
+# Backup files
+*.bak
+*.backup

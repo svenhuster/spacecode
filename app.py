@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import os
-import webbrowser
 import threading
 import time
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, session
@@ -73,7 +72,17 @@ def create_app():
     app.config['SECRET_KEY'] = 'leetcode-srs-secret-key-change-in-production'
 
     # Database configuration
-    data_dir = os.path.join(os.path.dirname(__file__), 'data')
+    # In development (when running from source), use local ./data directory
+    # In production (when installed), use user's data directory
+    if os.path.exists(os.path.join(os.path.dirname(__file__), '.git')) or \
+       os.path.exists(os.path.join(os.path.dirname(__file__), 'flake.nix')):
+        # Development mode - use local data directory
+        default_data_dir = os.path.join(os.path.dirname(__file__), 'data')
+    else:
+        # Production mode - use user's data directory
+        default_data_dir = os.path.join(os.path.expanduser('~'), '.local', 'share', 'spacecode')
+
+    data_dir = os.environ.get('SPACECODE_DATA_DIR', default_data_dir)
     os.makedirs(data_dir, exist_ok=True)
     app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(data_dir, "leetcode.db")}'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -81,6 +90,10 @@ def create_app():
     # Initialize extensions
     db.init_app(app)
     CORS(app)
+
+    # Create database tables if they don't exist
+    with app.app_context():
+        db.create_all()
 
     return app
 
@@ -531,18 +544,33 @@ def api_bulk_import():
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-def open_browser():
-    """Open browser after a short delay to ensure server is running"""
-    time.sleep(1.5)
-    webbrowser.open('http://localhost:1234')
-
 if __name__ == '__main__':
+    # Get configuration from environment variables
+    port = int(os.environ.get('SPACECODE_PORT', 1234))
+    debug = os.environ.get('SPACECODE_DEBUG', 'false').lower() == 'true'
+    allow_remote = os.environ.get('SPACECODE_ALLOW_REMOTE', 'false').lower() == 'true'
+    host = '0.0.0.0' if allow_remote else '127.0.0.1'
+
+    # Get data directory (same logic as in create_app)
+    if os.path.exists(os.path.join(os.path.dirname(__file__), '.git')) or \
+       os.path.exists(os.path.join(os.path.dirname(__file__), 'flake.nix')):
+        # Development mode - use local data directory
+        default_data_dir = os.path.join(os.path.dirname(__file__), 'data')
+    else:
+        # Production mode - use user's data directory
+        default_data_dir = os.path.join(os.path.expanduser('~'), '.local', 'share', 'spacecode')
+
+    data_dir = os.environ.get('SPACECODE_DATA_DIR', default_data_dir)
+
     print("Starting LeetCode Spaced Repetition System...")
-    print("Server will be available at: http://localhost:1234")
-    print("Visit http://localhost:1234/bookmarklet to install the bookmarklet")
+    if allow_remote:
+        print(f"Server will be available at: http://localhost:{port} (and all network interfaces)")
+    else:
+        print(f"Server will be available at: http://localhost:{port} (localhost only)")
+    print(f"Data directory: {data_dir}")
+    print(f"Visit http://localhost:{port}/bookmarklet to install the bookmarklet")
+    if not allow_remote:
+        print("Note: Set SPACECODE_ALLOW_REMOTE=true to allow remote connections")
     print("Press Ctrl+C to stop the server")
 
-    # Open browser automatically in a separate thread
-    threading.Thread(target=open_browser, daemon=True).start()
-
-    app.run(debug=True, host='0.0.0.0', port=1234)
+    app.run(debug=debug, host=host, port=port)

@@ -3,7 +3,12 @@
     "allow": [
       "Bash(sqlite3:*)",
       "Bash(python3:*)",
-      "Bash(git init:*)"
+      "Bash(git init:*)",
+      "Bash(nix-build:*)",
+      "Bash(nix build:*)",
+      "Read(//nix/store/vrdnk1bwmhndzqmqb1asqlccicm265l1-leetcode-srs-1.0.0/bin/**)",
+      "Read(//nix/store/m1n357437192aszvjgqyp74gpysn3637-leetcode-srs-1.0.0/bin/**)",
+      "Bash(nix flake check:*)"
     ],
     "deny": [],
     "ask": []
