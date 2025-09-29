@@ -19,30 +19,29 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Check if we're in testing mode (bypassing Flask app)
-if os.environ.get('ALEMBIC_TESTING') == 'true':
-    # Direct database URL for testing (will be set by test script)
-    from models import db
-    target_metadata = db.metadata
-elif os.environ.get('ALEMBIC_FROM_APP') == 'true':
+# Import models first
+from models import db
+target_metadata = db.metadata
+
+# Check if we're running from Alembic CLI vs app startup
+if os.environ.get('ALEMBIC_FROM_APP') == 'true':
     # Running from app startup - database URL already set in config
-    from models import db
-    target_metadata = db.metadata
+    # Don't create Flask app to avoid circular imports
+    pass
+elif os.environ.get('ALEMBIC_TESTING') == 'true':
+    # Direct database URL for testing (will be set by test script)
+    pass
 else:
-    # Import Flask app and models for normal CLI operation
-    from app import create_app
-    from models import db
+    # Normal CLI operation - need to get database URL from Flask config
+    # Set database URL manually to avoid circular dependency
+    if os.path.exists(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.git')):
+        # Development mode - use local data directory
+        db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'leetcode.db')
+    else:
+        # Production mode - use user's data directory
+        db_path = os.path.join(os.path.expanduser('~'), '.local', 'share', 'spacecode', 'leetcode.db')
 
-    # Create Flask app to get database configuration
-    app = create_app()
-
-    # Set the database URL from Flask app config
-    with app.app_context():
-        config.set_main_option('sqlalchemy.url', app.config['SQLALCHEMY_DATABASE_URI'])
-
-    # add your model's MetaData object here
-    # for 'autogenerate' support
-    target_metadata = db.metadata
+    config.set_main_option('sqlalchemy.url', f'sqlite:///{db_path}')
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

@@ -112,6 +112,10 @@ def run_alembic_migrations(database_url):
     Run Alembic database migrations automatically on app startup.
     This replaces the manual migration system with proper version control.
     """
+    # Skip if already running from Alembic CLI to avoid recursion
+    if os.environ.get('ALEMBIC_FROM_APP') == 'true':
+        return
+
     try:
         # Try to find alembic.ini in multiple locations
         # 1. Directory containing this file (for development)
@@ -138,6 +142,27 @@ def run_alembic_migrations(database_url):
 
         print("🔄 Running database migrations with Alembic...")
 
+        # Get current revision to check if migrations are needed
+        from alembic.script import ScriptDirectory
+        from alembic.runtime.migration import MigrationContext
+        from sqlalchemy import create_engine
+
+        engine = create_engine(database_url)
+        with engine.connect() as conn:
+            context = MigrationContext.configure(conn)
+            current_rev = context.get_current_revision()
+
+            script_dir = ScriptDirectory.from_config(alembic_cfg)
+            head_rev = script_dir.get_current_head()
+
+            if current_rev == head_rev:
+                print("✅ Database is already up to date")
+                return
+            elif current_rev is None:
+                print("📋 Fresh database - applying all migrations")
+            else:
+                print(f"🔄 Upgrading from {current_rev} to {head_rev}")
+
         # Apply all pending migrations
         command.upgrade(alembic_cfg, 'head')
 
@@ -145,7 +170,11 @@ def run_alembic_migrations(database_url):
 
     except Exception as e:
         print(f"⚠ Failed to run database migrations: {e}")
-        # Don't fail startup on migration errors - let the app run with existing schema
+        # For specific error about duplicate columns, this is expected
+        # when transitioning from manual to Alembic migrations
+        if "duplicate column name" in str(e):
+            print("ℹ️  This appears to be a transition from manual to Alembic migrations")
+            print("ℹ️  Consider running the reconciliation script to fix this")
         print("⚠ Continuing with existing database schema")
     finally:
         # Clean up environment variable
