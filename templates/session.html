@@ -93,6 +93,13 @@
                         🛑 End Session
                     </button>
                 </div>
+
+                <div class="session-options">
+                    <label class="option-toggle">
+                        <input type="checkbox" id="auto-open-problems" checked>
+                        <span class="option-label">🔗 Auto-open next problem in new tab</span>
+                    </label>
+                </div>
             </div>
         {% endfor %}
     </div>
@@ -120,11 +127,6 @@
     </div>
 </div>
 
-<div class="time-warning" id="time-warning" style="display: none;">
-    <div class="warning-content">
-        ⏰ <strong>5 minutes remaining!</strong> Session will end automatically when time expires.
-    </div>
-</div>
 
 {% endblock %}
 
@@ -143,6 +145,7 @@ let warningShown = false;
 let isLoadingNextProblem = false;
 let timerInterval = null;
 let sessionCompleted = false;
+let autoOpenProblems = true;
 
 // Timer - Update countdown and progress
 function updateTimer() {
@@ -176,11 +179,7 @@ function updateTimer() {
     document.getElementById('progress-fill').style.width = timeProgress + '%';
     document.getElementById('progress-text').textContent = Math.round(timeProgress) + '% complete';
 
-    // Show warning at 5 minutes remaining
-    if (sessionTimeRemaining <= 300 && !warningShown) {
-        document.getElementById('time-warning').style.display = 'block';
-        warningShown = true;
-    }
+    // Warning disabled per user request - was distracting
 
     // Update progress bar color as time runs out
     const progressBar = document.getElementById('progress-fill');
@@ -192,6 +191,26 @@ function updateTimer() {
 }
 
 timerInterval = setInterval(updateTimer, 1000);
+
+// Initialize auto-open preference from localStorage
+function initializeAutoOpenSetting() {
+    const saved = localStorage.getItem('autoOpenProblems');
+    if (saved !== null) {
+        autoOpenProblems = JSON.parse(saved);
+    }
+
+    const checkbox = document.getElementById('auto-open-problems');
+    if (checkbox) {
+        checkbox.checked = autoOpenProblems;
+        checkbox.addEventListener('change', function() {
+            autoOpenProblems = this.checked;
+            localStorage.setItem('autoOpenProblems', JSON.stringify(autoOpenProblems));
+        });
+    }
+}
+
+// Initialize on page load
+initializeAutoOpenSetting();
 
 // Keyboard shortcuts
 document.addEventListener('keydown', function(e) {
@@ -328,7 +347,14 @@ function nextProblem() {
                 // Add new problem to the session
                 addNewProblemToSession(data.problem);
                 currentProblemIndex++;
+
+                // Show the new problem (and auto-open if enabled)
                 showProblemAtIndex(currentProblemIndex);
+
+                // For dynamically added problems, auto-open immediately if enabled
+                if (autoOpenProblems) {
+                    window.open(data.problem.url, '_blank');
+                }
 
                 // Update session time tracking if provided
                 if (data.session && data.session.remaining_seconds !== undefined) {
@@ -360,6 +386,14 @@ function showProblemAtIndex(index) {
     if (cards[index]) {
         cards[index].style.display = 'block';
         problemStartTime = Date.now();
+
+        // Auto-open problem in new tab if enabled and this isn't the first problem
+        if (autoOpenProblems && index > 0) {
+            const problemLink = cards[index].querySelector('.problem-link');
+            if (problemLink && problemLink.href) {
+                window.open(problemLink.href, '_blank');
+            }
+        }
     }
 }
 

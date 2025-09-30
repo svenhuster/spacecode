@@ -702,6 +702,34 @@ body {
     gap: 1rem;
 }
 
+.session-options {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: center;
+}
+
+.option-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    user-select: none;
+}
+
+.option-toggle input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent-primary);
+}
+
+.option-toggle:hover .option-label {
+    color: var(--text-primary);
+}
+
 .session-complete {
     text-align: center;
     padding: 3rem 2rem;
