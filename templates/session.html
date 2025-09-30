@@ -141,9 +141,16 @@ let sessionTimeRemaining = {{ session.get_remaining_seconds() or 2700 }};
 let maxDurationSeconds = {{ (session.max_duration_minutes or 45) * 60 }};
 let warningShown = false;
 let isLoadingNextProblem = false;
+let timerInterval = null;
+let sessionCompleted = false;
 
 // Timer - Update countdown and progress
 function updateTimer() {
+    // Don't update timer if session is already completed
+    if (sessionCompleted) {
+        return;
+    }
+
     const problemElapsed = Math.floor((Date.now() - problemStartTime) / 1000);
 
     // Update session time remaining
@@ -151,6 +158,8 @@ function updateTimer() {
 
     if (sessionTimeRemaining <= 0) {
         // Time's up! Auto-complete session
+        sessionCompleted = true;
+        clearInterval(timerInterval);
         alert('Session time expired! Completing your session.');
         completeSession();
         return;
@@ -182,7 +191,7 @@ function updateTimer() {
     }
 }
 
-setInterval(updateTimer, 1000);
+timerInterval = setInterval(updateTimer, 1000);
 
 // Keyboard shortcuts
 document.addEventListener('keydown', function(e) {
@@ -245,6 +254,11 @@ function submitRating(rating) {
 
             // Check if session expired
             if (data.session_expired || data.session_completed) {
+                sessionCompleted = true;
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }
                 alert('Session completed! Time limit reached.');
                 completeSession();
                 return;
@@ -289,6 +303,11 @@ function nextProblem() {
         .then(response => response.json())
         .then(data => {
             if (data.session_expired) {
+                sessionCompleted = true;
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }
                 alert('Session expired! Completing your session.');
                 completeSession();
                 return;
@@ -437,6 +456,13 @@ function updateProgress() {
 }
 
 function completeSession() {
+    // Mark session as completed and stop timer
+    sessionCompleted = true;
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+
     // Hide session content
     document.getElementById('session-content').style.display = 'none';
 
