@@ -35,7 +35,7 @@
                 <h3>Resume Practice Session</h3>
                 <p>You have a {{ incomplete_session.status }} session with {{ incomplete_session.problems_reviewed }} problems reviewed.</p>
                 <div class="resume-actions">
-                    <a href="{{ url_for('practice_session') }}" class="btn btn-primary btn-large">
+                    <a href="{{ url_for('session_config') }}" class="btn btn-primary btn-large">
                         Resume Session
                         <span class="btn-subtitle">Continue where you left off</span>
                     </a>
@@ -45,7 +45,7 @@
                 </div>
             </div>
         {% elif stats.due_now > 0 %}
-            <a href="{{ url_for('practice_session') }}" class="btn btn-primary btn-large">
+            <a href="{{ url_for('session_config') }}" class="btn btn-primary btn-large">
                 Start Practice Session
                 <span class="btn-subtitle">{{ stats.due_now }} problems waiting</span>
             </a>

@@ -119,3 +119,4 @@ python3 cleanup_duplicates.py
 - Responsive design with mobile-first approach
 - All frontend assets are self-contained (no external CDNs except fonts)
 - never touch the prod db without permission
+- keep a version of the old sqlite db in order to test migrations when the schema is changed

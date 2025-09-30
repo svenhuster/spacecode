@@ -18,7 +18,7 @@
                 <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
                     Dashboard
                 </a>
-                <a href="{{ url_for('practice_session') }}" class="nav-link {% if request.endpoint == 'practice_session' %}active{% endif %}">
+                <a href="{{ url_for('session_config') }}" class="nav-link {% if request.endpoint in ['session_config', 'practice_session'] %}active{% endif %}">
                     Practice
                 </a>
                 <a href="{{ url_for('problems') }}" class="nav-link {% if request.endpoint == 'problems' %}active{% endif %}">

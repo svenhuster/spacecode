@@ -99,47 +99,141 @@ def get_due_problems(problems_with_stats, limit=None, randomize=True):
 
     return due_problems
 
-def get_session_problems(all_problems_with_stats, session_size=10):
+def get_session_problems(all_problems_with_stats, session_size=1):
     """
-    Get problems for a practice session.
+    Get problems for a practice session with balanced mix of new and review problems.
+
+    Balance Strategy:
+    - Reserve 25% of session for new/unreviewed problems (minimum 1 if any exist)
+    - Prioritize overdue problems (spaced repetition)
+    - Include failed recent problems for reinforcement
+    - Mix in new problems even when many reviews are due
 
     Args:
         all_problems_with_stats: List of (Problem, ProblemStats) tuples
-        session_size: Target number of problems for the session
+        session_size: Target number of problems (default 1 for dynamic loading)
 
     Returns:
         List of problems for the session
     """
-    # First, get all due problems
-    due_problems = get_due_problems(all_problems_with_stats)
+    if session_size == 1:
+        # Dynamic loading mode - return next single problem with smart selection
+        return get_next_problem(all_problems_with_stats)
 
-    if len(due_problems) >= session_size:
-        return due_problems[:session_size]
-
-    # If we don't have enough due problems, add some recent problems for reinforcement
-    not_due_problems = []
+    # Legacy batch mode (kept for compatibility)
     now = datetime.utcnow()
+
+    # Categorize problems
+    new_problems = []           # Never reviewed
+    overdue_problems = []       # Past due date
+    failed_recent = []          # Recently rated 0-2
+    reinforcement_problems = [] # Recent low ratings but not due
 
     for problem, stats in all_problems_with_stats:
         if not problem.is_active:
             continue
 
-        if stats and stats.next_review > now:
-            # Only include problems reviewed in the last 24 hours
-            if stats.last_reviewed and (now - stats.last_reviewed).total_seconds() < 86400:
-                not_due_problems.append(problem)
+        if stats is None:
+            # New problem - never reviewed
+            new_problems.append(problem)
+        elif stats.next_review <= now:
+            # Due for review
+            if stats.last_rating is not None and stats.last_rating <= 2:
+                failed_recent.append(problem)
+            else:
+                overdue_problems.append(problem)
+        elif (stats.last_reviewed and
+              (now - stats.last_reviewed).total_seconds() < 86400 and
+              stats.average_rating and stats.average_rating < 3.5):
+            # Recently reviewed with low average rating
+            reinforcement_problems.append(problem)
 
-    # Prioritize problems with lower ratings for reinforcement
-    not_due_problems.sort(key=lambda p: (p.stats.average_rating or 3, random.random()))
+    # Calculate session composition
+    new_slots = max(1, int(session_size * 0.25)) if new_problems else 0
+    review_slots = session_size - new_slots
 
-    # Fill the session
-    remaining_slots = session_size - len(due_problems)
-    session_problems = due_problems + not_due_problems[:remaining_slots]
+    # Select problems with priority ordering
+    selected_problems = []
 
-    # Shuffle for variety
-    random.shuffle(session_problems)
+    # 1. Failed recent problems (highest priority)
+    selected_problems.extend(failed_recent[:review_slots//2])
+    remaining_review = review_slots - len(selected_problems)
 
-    return session_problems
+    # 2. Overdue problems (sorted by how overdue they are)
+    overdue_problems.sort(key=lambda p: p.stats.next_review if p.stats else now)
+    selected_problems.extend(overdue_problems[:remaining_review])
+
+    # 3. New problems (randomly selected)
+    random.shuffle(new_problems)
+    selected_problems.extend(new_problems[:new_slots])
+
+    # 4. Fill remaining slots with reinforcement if needed
+    remaining_slots = session_size - len(selected_problems)
+    if remaining_slots > 0:
+        reinforcement_problems.sort(key=lambda p: (p.stats.average_rating or 3, random.random()))
+        selected_problems.extend(reinforcement_problems[:remaining_slots])
+
+    # Shuffle final list for variety
+    random.shuffle(selected_problems)
+
+    return selected_problems
+
+def get_next_problem(all_problems_with_stats):
+    """
+    Get the next single problem using smart prioritization.
+    This is used for time-based sessions with dynamic loading.
+    """
+    now = datetime.utcnow()
+
+    # Categorize and score problems
+    problem_scores = []
+
+    for problem, stats in all_problems_with_stats:
+        if not problem.is_active:
+            continue
+
+        score = 0
+        category = ""
+
+        if stats is None:
+            # New problem - high priority but not overwhelming
+            score = 100
+            category = "new"
+        else:
+            # Calculate overdue score
+            if stats.next_review <= now:
+                overdue_hours = (now - stats.next_review).total_seconds() / 3600
+                score = 200 + min(overdue_hours * 10, 500)  # Cap at 700
+
+                # Boost failed problems
+                if stats.last_rating is not None and stats.last_rating <= 2:
+                    score += 300
+                    category = "failed_recent"
+                else:
+                    category = "overdue"
+            else:
+                # Not due yet - lower priority reinforcement
+                if (stats.last_reviewed and
+                    (now - stats.last_reviewed).total_seconds() < 86400):
+                    if stats.average_rating and stats.average_rating < 3.5:
+                        score = 50 - (stats.average_rating * 10)
+                        category = "reinforcement"
+
+        if score > 0:
+            problem_scores.append((problem, score, category))
+
+    if not problem_scores:
+        return []
+
+    # Add randomization to prevent deterministic ordering
+    for i, (problem, score, category) in enumerate(problem_scores):
+        randomized_score = score + random.randint(-20, 20)
+        problem_scores[i] = (problem, randomized_score, category)
+
+    # Sort by score (highest first) and return top problem
+    problem_scores.sort(key=lambda x: x[1], reverse=True)
+
+    return [problem_scores[0][0]]
 
 def get_study_stats(problems_with_stats):
     """

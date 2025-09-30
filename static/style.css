@@ -465,6 +465,26 @@ body {
     display: flex;
     gap: 2rem;
     align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.session-progress, .session-stats, .session-duration {
+    text-align: center;
+}
+
+.session-progress span:first-child,
+.session-stats span:first-child,
+.session-duration span:first-child {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #fff;
+}
+
+.progress-label, .stats-label, .duration-label {
+    font-size: 0.8rem;
+    color: #aaa;
 }
 
 .session-progress {
@@ -706,16 +726,57 @@ body {
     bottom: 0;
     left: 0;
     right: 0;
-    height: 4px;
-    background-color: #3a3a3a;
+    height: 6px;
+    background-color: #2a2a2a;
     z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .progress-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
     height: 100%;
-    background-color: #4CAF50;
-    transition: width 0.3s ease;
+    background-color: #0066cc;
+    transition: width 0.3s ease, background-color 0.3s ease;
+    border-radius: 0 2px 2px 0;
     width: 0%;
+}
+
+.progress-text {
+    position: relative;
+    z-index: 1001;
+    font-size: 0.7rem;
+    color: #fff;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+    margin-top: -2px;
+}
+
+.time-warning {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    background: #ff6b6b;
+    color: #fff;
+    padding: 1rem 2rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(255, 107, 107, 0.3);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: translateX(-50%) scale(1); }
+    50% { transform: translateX(-50%) scale(1.05); }
+    100% { transform: translateX(-50%) scale(1); }
+}
+
+.warning-content {
+    text-align: center;
+    font-weight: 500;
 }
 
 /* Problems page */
@@ -1241,5 +1302,223 @@ body {
     .demo-step {
         flex-direction: column;
         text-align: center;
+    }
+}
+
+/* Session Configuration Styles */
+.session-config-container {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.session-config-header {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.session-config-header h1 {
+    color: #fff;
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.config-subtitle {
+    color: #aaa;
+    font-size: 1.1rem;
+}
+
+.session-config-form {
+    background: #2a2a2a;
+    border-radius: 12px;
+    padding: 2rem;
+    border: 1px solid #3a3a3a;
+}
+
+.duration-section {
+    margin-bottom: 2rem;
+}
+
+.duration-section h3 {
+    color: #fff;
+    margin-bottom: 1rem;
+    font-size: 1.3rem;
+}
+
+.duration-presets {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.duration-btn {
+    background: #3a3a3a;
+    border: 2px solid #4a4a4a;
+    border-radius: 8px;
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.duration-btn:hover {
+    background: #4a4a4a;
+    border-color: #5a5a5a;
+}
+
+.duration-btn.selected {
+    background: #0066cc;
+    border-color: #0077dd;
+    color: #fff;
+}
+
+.duration-time {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #fff;
+}
+
+.duration-btn.selected .duration-time {
+    color: #fff;
+}
+
+.duration-label {
+    font-size: 0.85rem;
+    color: #aaa;
+}
+
+.duration-btn.selected .duration-label {
+    color: #cce6ff;
+}
+
+.custom-duration {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #4a4a4a;
+}
+
+.custom-duration label {
+    color: #ccc;
+    font-weight: 500;
+}
+
+.custom-duration input {
+    background: #1a1a1a;
+    border: 1px solid #4a4a4a;
+    color: #e0e0e0;
+    padding: 0.5rem;
+    border-radius: 4px;
+    width: 100px;
+}
+
+.session-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.info-card {
+    background: #1a1a1a;
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid #3a3a3a;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.info-icon {
+    font-size: 1.5rem;
+}
+
+.info-content h4 {
+    color: #fff;
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+}
+
+.info-content p {
+    color: #aaa;
+    font-size: 0.85rem;
+}
+
+.session-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 2rem;
+}
+
+.btn-large {
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.incomplete-session-notice {
+    background: #2d1b00;
+    border: 1px solid #4a3000;
+    border-radius: 8px;
+    margin-top: 2rem;
+    padding: 1.5rem;
+}
+
+.notice-content h4 {
+    color: #ffaa00;
+    margin-bottom: 0.5rem;
+}
+
+.notice-content p {
+    color: #ccc;
+    margin-bottom: 1rem;
+}
+
+.notice-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+.notice-actions form {
+    margin: 0;
+}
+
+/* Mobile responsiveness for session config */
+@media (max-width: 768px) {
+    .session-config-header h1 {
+        font-size: 2rem;
+    }
+
+    .duration-presets {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .custom-duration {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+
+    .custom-duration input {
+        width: 100%;
+    }
+
+    .session-info {
+        grid-template-columns: 1fr;
+    }
+
+    .session-actions {
+        flex-direction: column;
+    }
+
+    .notice-actions {
+        flex-direction: column;
     }
 }

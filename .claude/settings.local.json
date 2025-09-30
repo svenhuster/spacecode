@@ -8,7 +8,20 @@
       "Bash(nix build:*)",
       "Read(//nix/store/vrdnk1bwmhndzqmqb1asqlccicm265l1-leetcode-srs-1.0.0/bin/**)",
       "Read(//nix/store/m1n357437192aszvjgqyp74gpysn3637-leetcode-srs-1.0.0/bin/**)",
-      "Bash(nix flake check:*)"
+      "Bash(nix flake check:*)",
+      "Bash(timeout:*)",
+      "Bash(alembic init:*)",
+      "Bash(alembic revision:*)",
+      "Bash(alembic stamp:*)",
+      "Bash(alembic current:*)",
+      "Bash(nix run:*)",
+      "Read(//nix/store/**)",
+      "Bash(alembic upgrade:*)",
+      "Bash(alembic:*)",
+      "Read(//home/slh/p/a/spacecode-stable/**)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
