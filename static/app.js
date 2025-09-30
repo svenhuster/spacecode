@@ -1,5 +1,21 @@
 // Global app utilities and enhancements
 
+function clearFlashMessages() {
+    const flashMessages = document.querySelectorAll('.flash-message');
+    flashMessages.forEach(function(message) {
+        message.style.transition = 'opacity 0.3s';
+        message.style.opacity = '0';
+        setTimeout(function() {
+            if (message.parentElement) {
+                message.remove();
+            }
+        }, 300);
+    });
+}
+
+// Make clearFlashMessages globally available
+window.clearFlashMessages = clearFlashMessages;
+
 document.addEventListener('DOMContentLoaded', function() {
     // Auto-hide flash messages after 5 seconds
     setTimeout(function() {
@@ -29,24 +45,28 @@ function addKeyboardShortcuts() {
         // Alt + D for Dashboard
         if (e.altKey && e.key === 'd') {
             e.preventDefault();
+            clearFlashMessages();
             window.location.href = '/';
         }
 
         // Alt + P for Practice
         if (e.altKey && e.key === 'p') {
             e.preventDefault();
+            clearFlashMessages();
             window.location.href = '/session';
         }
 
         // Alt + M for Problems (Manage)
         if (e.altKey && e.key === 'm') {
             e.preventDefault();
+            clearFlashMessages();
             window.location.href = '/problems';
         }
 
         // Alt + S for Stats
         if (e.altKey && e.key === 's') {
             e.preventDefault();
+            clearFlashMessages();
             window.location.href = '/stats';
         }
     });
@@ -64,10 +84,13 @@ function enhanceForms() {
         });
     });
 
-    // Add form validation
+    // Add form validation and clear flash messages on submit
     const forms = document.querySelectorAll('form');
     forms.forEach(function(form) {
         form.addEventListener('submit', function(e) {
+            // Clear any existing flash messages before form submission
+            clearFlashMessages();
+
             const submitBtn = form.querySelector('button[type="submit"]');
             if (submitBtn) {
                 submitBtn.disabled = true;
@@ -98,6 +121,9 @@ function enhanceButtons() {
     const asyncButtons = document.querySelectorAll('.btn[data-async]');
     asyncButtons.forEach(function(button) {
         button.addEventListener('click', function() {
+            // Clear flash messages on button action
+            clearFlashMessages();
+
             const originalText = this.innerHTML;
             this.innerHTML = 'Loading...';
             this.disabled = true;
@@ -110,6 +136,21 @@ function enhanceButtons() {
                 }
             }, 3000);
         });
+    });
+
+    // Clear flash messages on regular button clicks too
+    const allButtons = document.querySelectorAll('button, .btn');
+    allButtons.forEach(function(button) {
+        // Skip if already has a click handler or is a close button
+        if (button.hasAttribute('data-enhanced') || button.classList.contains('flash-close')) {
+            return;
+        }
+
+        button.addEventListener('click', function() {
+            clearFlashMessages();
+        });
+
+        button.setAttribute('data-enhanced', 'true');
     });
 }
 

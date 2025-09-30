@@ -222,6 +222,11 @@ function submitRating(rating) {
     const currentCard = document.querySelector('.problem-card:not([style*="display: none"])');
     if (!currentCard) return;
 
+    // Clear any existing flash messages when rating a problem
+    if (typeof clearFlashMessages !== 'undefined') {
+        clearFlashMessages();
+    }
+
     const problemId = currentCard.dataset.problemId;
     const timeSpent = Math.floor((Date.now() - problemStartTime) / 1000);
 
@@ -502,6 +507,11 @@ function completeSession() {
 
 function pauseSession() {
     if (confirm('Pause your practice session? You can resume it later.')) {
+        // Clear flash messages when pausing session
+        if (typeof clearFlashMessages !== 'undefined') {
+            clearFlashMessages();
+        }
+
         fetch('/session/pause', {
             method: 'POST',
             headers: {
@@ -526,6 +536,11 @@ function pauseSession() {
 
 function abandonSession() {
     if (confirm('End your practice session? This will mark it as completed.')) {
+        // Clear flash messages when abandoning session
+        if (typeof clearFlashMessages !== 'undefined') {
+            clearFlashMessages();
+        }
+
         fetch('/session/abandon', {
             method: 'POST',
             headers: {
