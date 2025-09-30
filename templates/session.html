@@ -140,6 +140,7 @@ let sessionData = [];
 let sessionTimeRemaining = {{ session.get_remaining_seconds() or 2700 }};
 let maxDurationSeconds = {{ (session.max_duration_minutes or 45) * 60 }};
 let warningShown = false;
+let isLoadingNextProblem = false;
 
 // Timer - Update countdown and progress
 function updateTimer() {
@@ -268,29 +269,166 @@ function skipProblem() {
 }
 
 function nextProblem() {
-    currentProblemIndex++;
-    reviewedProblems++;
+    if (isLoadingNextProblem) return;
 
-    // Update progress
+    isLoadingNextProblem = true;
+    reviewedProblems++;
     updateProgress();
 
-    if (currentProblemIndex >= totalProblems) {
-        completeSession();
+    // Check if we have more problems in the current batch
+    if (currentProblemIndex + 1 < totalProblems) {
+        // Show next problem from current batch
+        currentProblemIndex++;
+        showProblemAtIndex(currentProblemIndex);
+        isLoadingNextProblem = false;
         return;
     }
 
-    // Hide current problem
+    // Need to fetch next problem from server
+    fetch('/session/next-problem')
+        .then(response => response.json())
+        .then(data => {
+            if (data.session_expired) {
+                alert('Session expired! Completing your session.');
+                completeSession();
+                return;
+            }
+
+            if (data.no_problems) {
+                // No more problems available, complete session
+                completeSession();
+                return;
+            }
+
+            if (data.success && data.problem) {
+                // Add new problem to the session
+                addNewProblemToSession(data.problem);
+                currentProblemIndex++;
+                showProblemAtIndex(currentProblemIndex);
+
+                // Update session time tracking if provided
+                if (data.session && data.session.remaining_seconds !== undefined) {
+                    sessionTimeRemaining = data.session.remaining_seconds;
+                }
+            } else {
+                alert('Error loading next problem: ' + (data.error || 'Unknown error'));
+                completeSession();
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching next problem:', error);
+            alert('Error loading next problem. Completing session.');
+            completeSession();
+        })
+        .finally(() => {
+            isLoadingNextProblem = false;
+        });
+}
+
+function showProblemAtIndex(index) {
+    // Hide all problems
     document.querySelectorAll('.problem-card').forEach(card => {
         card.style.display = 'none';
     });
 
-    // Show next problem
-    const nextCard = document.querySelectorAll('.problem-card')[currentProblemIndex];
-    nextCard.style.display = 'block';
+    // Show the problem at the given index
+    const cards = document.querySelectorAll('.problem-card');
+    if (cards[index]) {
+        cards[index].style.display = 'block';
+        problemStartTime = Date.now();
+    }
+}
 
-    // Update counter and reset timer
-    document.getElementById('current-problem').textContent = currentProblemIndex + 1;
-    problemStartTime = Date.now();
+function addNewProblemToSession(problem) {
+    // Create new problem card HTML
+    const problemCard = document.createElement('div');
+    problemCard.className = 'problem-card';
+    problemCard.dataset.problemId = problem.id;
+    problemCard.style.display = 'none';
+
+    problemCard.innerHTML = `
+        <div class="problem-header">
+            <h2>${problem.title || problem.slug.replace('-', ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}</h2>
+            <div class="problem-meta">
+                ${problem.number ? `<span class="problem-number">#${problem.number}</span>` : ''}
+                ${problem.difficulty ? `<span class="difficulty ${problem.difficulty.toLowerCase()}">${problem.difficulty}</span>` : ''}
+            </div>
+        </div>
+
+        <div class="problem-link-section">
+            <a href="${problem.url}" target="_blank" class="problem-link">
+                Open Problem in LeetCode
+                <span class="external-icon">↗</span>
+            </a>
+        </div>
+
+        <div class="rating-section">
+            <h3>How did you do?</h3>
+            <div class="rating-buttons">
+                <button class="rating-btn rating-0" data-rating="0" data-key="0">
+                    <span class="rating-emoji">😵</span>
+                    <span class="rating-label">Failed</span>
+                    <span class="rating-shortcut">0</span>
+                </button>
+                <button class="rating-btn rating-1" data-rating="1" data-key="1">
+                    <span class="rating-emoji">😰</span>
+                    <span class="rating-label">Very Hard</span>
+                    <span class="rating-shortcut">1</span>
+                </button>
+                <button class="rating-btn rating-2" data-rating="2" data-key="2">
+                    <span class="rating-emoji">😓</span>
+                    <span class="rating-label">Hard</span>
+                    <span class="rating-shortcut">2</span>
+                </button>
+                <button class="rating-btn rating-3" data-rating="3" data-key="3">
+                    <span class="rating-emoji">😐</span>
+                    <span class="rating-label">Medium</span>
+                    <span class="rating-shortcut">3</span>
+                </button>
+                <button class="rating-btn rating-4" data-rating="4" data-key="4">
+                    <span class="rating-emoji">😊</span>
+                    <span class="rating-label">Good</span>
+                    <span class="rating-shortcut">4</span>
+                </button>
+                <button class="rating-btn rating-5" data-rating="5" data-key="5">
+                    <span class="rating-emoji">😎</span>
+                    <span class="rating-label">Easy</span>
+                    <span class="rating-shortcut">5</span>
+                </button>
+            </div>
+            <p class="rating-hint">Use keyboard shortcuts 0-5 or click the buttons</p>
+        </div>
+
+        <div class="session-controls">
+            <button class="btn btn-secondary skip-btn" data-problem-id="${problem.id}">
+                Skip for Now
+            </button>
+            <button class="btn btn-warning pause-btn" onclick="pauseSession()">
+                ⏸️ Pause Session
+            </button>
+            <button class="btn btn-danger abandon-btn" onclick="abandonSession()">
+                🛑 End Session
+            </button>
+        </div>
+    `;
+
+    // Add event listeners for the new problem's buttons
+    problemCard.querySelectorAll('.rating-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const rating = parseInt(this.dataset.rating);
+            submitRating(rating);
+        });
+    });
+
+    problemCard.querySelector('.skip-btn').addEventListener('click', function() {
+        skipProblem();
+    });
+
+    // Append to session content
+    document.getElementById('session-content').appendChild(problemCard);
+
+    // Update total problems count
+    totalProblems++;
 }
 
 function updateProgress() {
