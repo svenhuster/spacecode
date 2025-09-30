@@ -549,6 +549,31 @@ def delete_problem(problem_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+@app.route('/problems/<int:problem_id>/restore', methods=['POST'])
+def restore_problem(problem_id):
+    """Restore a deleted problem"""
+    try:
+        problem = Problem.query.get_or_404(problem_id)
+        problem.is_active = True
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/problems/deleted')
+def deleted_problems():
+    """Show recently deleted problems"""
+    # Get problems deleted in the last 30 days
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+
+    deleted_problems_query = Problem.query.filter(
+        Problem.is_active == False,
+        Problem.created_at >= thirty_days_ago
+    ).order_by(Problem.created_at.desc()).all()
+
+    return render_template('deleted_problems.html', problems=deleted_problems_query)
+
 @app.route('/stats')
 def stats():
     """Statistics and analytics page"""
@@ -716,6 +741,49 @@ def api_add_problem():
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/export-data')
+def api_export_data():
+    """Export all user data as JSON"""
+    try:
+        # Get all active problems with their stats and reviews
+        problems_data = []
+        problems_with_stats = db.session.query(Problem, ProblemStats).outerjoin(ProblemStats).filter(Problem.is_active == True).all()
+
+        for problem, stats in problems_with_stats:
+            # Get all reviews for this problem
+            reviews = Review.query.filter_by(problem_id=problem.id).order_by(Review.reviewed_at.desc()).all()
+
+            problem_data = {
+                'url': problem.url,
+                'title': problem.title,
+                'number': problem.number,
+                'difficulty': problem.difficulty,
+                'tags': problem.tags,
+                'description': problem.description,
+                'notes': problem.notes,
+                'created_at': problem.created_at.isoformat() if problem.created_at else None,
+                'stats': stats.to_dict() if stats else None,
+                'reviews': [review.to_dict() for review in reviews]
+            }
+            problems_data.append(problem_data)
+
+        # Get session history
+        sessions = Session.query.filter(Session.completed_at.isnot(None)).order_by(Session.completed_at.desc()).all()
+        sessions_data = [session.to_dict() for session in sessions]
+
+        export_data = {
+            'export_date': datetime.utcnow().isoformat(),
+            'version': '1.0',
+            'problems': problems_data,
+            'sessions': sessions_data,
+            'stats': get_study_stats(problems_with_stats)
+        }
+
+        return jsonify(export_data)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/bulk-import', methods=['POST'])
 def api_bulk_import():
     """Bulk import problems from JSON"""
@@ -724,6 +792,7 @@ def api_bulk_import():
         problems_data = data.get('problems', [])
 
         added_count = 0
+        updated_count = 0
         errors = []
 
         for problem_data in problems_data:
@@ -733,7 +802,20 @@ def api_bulk_import():
                     continue
 
                 # Check if exists
-                if Problem.query.filter_by(url=url).first():
+                existing = Problem.query.filter_by(url=url, is_active=True).first()
+                if existing:
+                    # Update existing problem if new data provided
+                    if problem_data.get('title') and not existing.title:
+                        existing.title = problem_data.get('title')
+                    if problem_data.get('difficulty') and not existing.difficulty:
+                        existing.difficulty = problem_data.get('difficulty')
+                    if problem_data.get('tags') and not existing.tags:
+                        existing.tags = problem_data.get('tags')
+                    if problem_data.get('description') and not existing.description:
+                        existing.description = problem_data.get('description')
+                    if problem_data.get('number') and not existing.number:
+                        existing.number = problem_data.get('number')
+                    updated_count += 1
                     continue
 
                 problem = Problem(
@@ -742,6 +824,7 @@ def api_bulk_import():
                     number=problem_data.get('number'),
                     difficulty=problem_data.get('difficulty', ''),
                     tags=problem_data.get('tags', ''),
+                    description=problem_data.get('description', ''),
                     notes=problem_data.get('notes', '')
                 )
                 db.session.add(problem)
@@ -760,6 +843,7 @@ def api_bulk_import():
         return jsonify({
             'success': True,
             'added_count': added_count,
+            'updated_count': updated_count,
             'errors': errors
         })
 

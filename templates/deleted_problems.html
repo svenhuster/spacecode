@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}Deleted Problems - LeetCode SRS{% endblock %}
+
+{% block content %}
+<div class="problems-page">
+    <div class="page-header">
+        <h1>Recently Deleted Problems</h1>
+        <p class="subtitle">Restore problems deleted in the last 30 days</p>
+    </div>
+
+    <div class="controls-section">
+        <div>
+            <a href="{{ url_for('problems') }}" class="btn btn-secondary">← Back to Problems</a>
+        </div>
+        <div>
+            <span class="text-muted">{{ problems|length }} deleted problems found</span>
+        </div>
+    </div>
+
+    <div class="problems-section">
+        {% if problems %}
+            <div class="problems-grid">
+                {% for problem in problems %}
+                    <div class="problem-card deleted-problem" data-problem-id="{{ problem.id }}">
+                        <div class="problem-header">
+                            <div class="problem-title">
+                                <h3>{{ problem.title or problem.slug.replace('-', ' ').title() }}</h3>
+                                {% if problem.number %}
+                                    <span class="problem-number">#{{ problem.number }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="problem-actions">
+                                <button onclick="restoreProblem({{ problem.id }})" class="btn btn-primary btn-small" title="Restore">
+                                    ↺ Restore
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="problem-meta">
+                            {% if problem.difficulty %}
+                                <span class="difficulty {{ problem.difficulty.lower() }}">{{ problem.difficulty }}</span>
+                            {% endif %}
+                            {% if problem.tags %}
+                                {% set tag_list = problem.tags.split(',') %}
+                                {% for tag in tag_list[:3] %}
+                                    <span class="tag">{{ tag.strip() }}</span>
+                                {% endfor %}
+                                {% if tag_list|length > 3 %}
+                                    <span class="tag-more">+{{ tag_list|length - 3 }} more</span>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+
+                        <div class="deleted-info">
+                            <p class="deleted-notice">
+                                <strong>⚠️ Deleted Problem</strong><br>
+                                Added: {{ problem.created_at.strftime('%m/%d/%Y') }}
+                            </p>
+                            <p class="restore-hint">
+                                Click "Restore" to bring this problem back to your active collection.
+                            </p>
+                        </div>
+
+                        <div class="problem-link">
+                            <a href="{{ problem.url }}" target="_blank" class="btn btn-ghost btn-small">
+                                View in LeetCode ↗
+                            </a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">🗑️</div>
+                <h3>No Recently Deleted Problems</h3>
+                <p>Problems you delete will appear here for 30 days before being permanently removed.</p>
+                <a href="{{ url_for('problems') }}" class="btn btn-primary">Back to Problems</a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function restoreProblem(problemId) {
+    if (!confirm('Restore this problem to your active collection?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/problems/${problemId}/restore`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Remove the problem card from this page
+            const card = event.target.closest('.problem-card');
+            card.style.transition = 'opacity 0.3s ease';
+            card.style.opacity = '0';
+
+            setTimeout(() => {
+                card.remove();
+
+                // Show success message
+                alert('Problem restored successfully!');
+
+                // Check if no more problems left
+                const remainingCards = document.querySelectorAll('.problem-card');
+                if (remainingCards.length === 0) {
+                    location.reload();
+                }
+            }, 300);
+        } else {
+            alert('Error restoring problem: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Restore error:', error);
+        alert('Failed to restore problem');
+    }
+}
+</script>
+{% endblock %}

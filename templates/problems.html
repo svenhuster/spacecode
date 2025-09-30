@@ -28,6 +28,11 @@
 
         <div class="add-controls">
             <button onclick="toggleAddForm()" class="btn btn-primary">Add Problem</button>
+            <div class="btn-group">
+                <button onclick="exportData()" class="btn btn-secondary">Export Data</button>
+                <button onclick="toggleImportForm()" class="btn btn-secondary">Import Data</button>
+                <a href="{{ url_for('deleted_problems') }}" class="btn btn-ghost">🗑️ Recently Deleted</a>
+            </div>
         </div>
     </div>
 
@@ -69,6 +74,29 @@
                 <button type="button" onclick="toggleAddForm()" class="btn btn-secondary">Cancel</button>
             </div>
         </form>
+    </div>
+
+    <div class="add-form-container" id="import-form" style="display: none;">
+        <h3>Import Data</h3>
+        <p>Import problems from a JSON file. This will add new problems and update existing ones.</p>
+        <form id="import-form-element" class="add-problem-form">
+            <div class="form-group">
+                <label for="import-file">Select JSON File</label>
+                <input type="file" id="import-file" accept=".json" class="form-input">
+            </div>
+            <div class="form-actions">
+                <button type="button" onclick="importData()" class="btn btn-primary">Import</button>
+                <button type="button" onclick="toggleImportForm()" class="btn btn-secondary">Cancel</button>
+            </div>
+        </form>
+        <div id="import-progress" style="display: none;">
+            <div class="import-status">
+                <p>Processing import...</p>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="import-progress-bar"></div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="problems-section">
@@ -172,6 +200,102 @@ function toggleAddForm() {
         document.getElementById('url').focus();
     } else {
         form.style.display = 'none';
+    }
+}
+
+function toggleImportForm() {
+    const form = document.getElementById('import-form');
+    const addForm = document.getElementById('add-form');
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    addForm.style.display = 'none'; // Hide add form when showing import form
+}
+
+async function exportData() {
+    try {
+        const exportBtn = event.target;
+        exportBtn.disabled = true;
+        exportBtn.textContent = 'Exporting...';
+
+        const response = await fetch('/api/export-data');
+        if (!response.ok) {
+            throw new Error('Export failed');
+        }
+
+        const data = await response.json();
+
+        // Create and download file
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `spacecode-export-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        alert('Data exported successfully!');
+
+    } catch (error) {
+        console.error('Export error:', error);
+        alert('Export failed: ' + error.message);
+    } finally {
+        const exportBtn = event.target;
+        exportBtn.disabled = false;
+        exportBtn.textContent = 'Export Data';
+    }
+}
+
+async function importData() {
+    const fileInput = document.getElementById('import-file');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        alert('Please select a file to import');
+        return;
+    }
+
+    try {
+        const importBtn = event.target;
+        importBtn.disabled = true;
+        importBtn.textContent = 'Importing...';
+
+        const text = await file.text();
+        const data = JSON.parse(text);
+
+        if (!data.problems || !Array.isArray(data.problems)) {
+            throw new Error('Invalid file format - missing problems array');
+        }
+
+        const response = await fetch('/api/bulk-import', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            let message = `Import completed! Added: ${result.added_count}, Updated: ${result.updated_count}`;
+            if (result.errors && result.errors.length > 0) {
+                message += ` (${result.errors.length} errors)`;
+            }
+            alert(message);
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            throw new Error(result.error || 'Import failed');
+        }
+
+    } catch (error) {
+        console.error('Import error:', error);
+        alert('Import failed: ' + error.message);
+    } finally {
+        const importBtn = event.target;
+        importBtn.disabled = false;
+        importBtn.textContent = 'Import';
+        toggleImportForm();
     }
 }
 
