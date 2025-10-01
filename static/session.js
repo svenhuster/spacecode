@@ -516,13 +516,12 @@ function completeSession() {
 }
 
 function pauseSession() {
-    if (confirm('Pause your practice session? You can resume it later.')) {
-        // Clear flash messages when pausing session
-        if (typeof clearFlashMessages !== 'undefined') {
-            clearFlashMessages();
-        }
+    // Clear flash messages when pausing session
+    if (typeof clearFlashMessages !== 'undefined') {
+        clearFlashMessages();
+    }
 
-        fetch('/session/pause', {
+    fetch('/session/pause', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -546,17 +545,15 @@ function pauseSession() {
         .catch(error => {
             console.error('Error pausing session:', error);
         });
-    }
 }
 
 function abandonSession() {
-    if (confirm('End your practice session? This will mark it as completed.')) {
-        // Clear flash messages when abandoning session
-        if (typeof clearFlashMessages !== 'undefined') {
-            clearFlashMessages();
-        }
+    // Clear flash messages when abandoning session
+    if (typeof clearFlashMessages !== 'undefined') {
+        clearFlashMessages();
+    }
 
-        fetch('/session/abandon', {
+    fetch('/session/abandon', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -580,7 +577,6 @@ function abandonSession() {
         .catch(error => {
             console.error('Error ending session:', error);
         });
-    }
 }
 
 // Initialize progress
