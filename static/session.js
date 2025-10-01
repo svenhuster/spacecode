@@ -176,7 +176,85 @@ function submitRating(rating) {
 }
 
 function skipProblem() {
-    nextProblem();
+    const currentCard = document.querySelector('.problem-card:not([style*="display: none"])');
+    if (!currentCard) return;
+
+    // Clear any existing flash messages when skipping a problem
+    if (typeof clearFlashMessages !== 'undefined') {
+        clearFlashMessages();
+    }
+
+    const problemId = currentCard.dataset.problemId;
+    const timeSpent = Math.floor((Date.now() - problemStartTime) / 1000);
+
+    // Disable all buttons
+    currentCard.querySelectorAll('button').forEach(btn => btn.disabled = true);
+
+    fetch('/session/skip', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            problem_id: parseInt(problemId),
+            time_spent: timeSpent
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json().catch(jsonError => {
+            throw new Error('Invalid JSON response from server');
+        });
+    })
+    .then(data => {
+        if (data.success) {
+            // Update session time tracking
+            if (data.session && data.session.remaining_seconds !== undefined) {
+                sessionTimeRemaining = data.session.remaining_seconds;
+            }
+
+            // Check if session expired or no more problems
+            if (data.session_expired || data.no_problems) {
+                sessionCompleted = true;
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }
+                alert(data.message || 'Session completed! No more problems available.');
+                completeSession();
+                return;
+            }
+
+            if (data.problem) {
+                // Add new problem to the session
+                addNewProblemToSession(data.problem);
+                currentProblemIndex++;
+
+                // Show the new problem
+                showProblemAtIndex(currentProblemIndex);
+
+                // Auto-open if enabled
+                if (autoOpenProblems) {
+                    window.open(data.problem.url, '_blank');
+                }
+
+                // Update session stats
+                reviewedProblems++;
+                updateProgress();
+            }
+        } else {
+            alert('Error skipping problem: ' + (data.error || 'Unknown error'));
+            // Re-enable buttons
+            currentCard.querySelectorAll('button').forEach(btn => btn.disabled = false);
+        }
+    })
+    .catch(error => {
+        console.error('Error skipping problem:', error);
+        alert('Error skipping problem: ' + error.message);
+        currentCard.querySelectorAll('button').forEach(btn => btn.disabled = false);
+    });
 }
 
 function nextProblem() {

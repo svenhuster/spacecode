@@ -191,6 +191,77 @@ def register_session_routes(app):
             db.session.rollback()
             return jsonify({'error': str(e)}), 500
 
+    @app.route('/session/skip', methods=['POST'])
+    def skip_problem():
+        """Skip a problem in the current session"""
+        try:
+            data = request.get_json()
+            if not data:
+                return jsonify({'error': 'Invalid JSON data'}), 400
+
+            problem_id = data.get('problem_id')
+            time_spent = data.get('time_spent', 0)
+
+            if problem_id is None:
+                return jsonify({'error': 'Missing problem_id'}), 400
+
+            problem_id = int(problem_id)
+            time_spent = int(time_spent)
+
+            # Get current session
+            current_session = None
+            if 'current_session_id' in session:
+                current_session = Session.query.filter(
+                    Session.id == session['current_session_id'],
+                    Session.status == 'active'
+                ).first()
+
+            if not current_session:
+                return jsonify({'error': 'No active session found'}), 400
+
+            # Find the problem
+            problem = Problem.query.get(problem_id)
+            if not problem:
+                return jsonify({'error': 'Problem not found'}), 404
+
+            # Create review record with rating -1 to indicate skipped
+            review = Review(
+                problem_id=problem_id,
+                rating=-1,  # Special rating to indicate skipped
+                time_spent_seconds=time_spent,
+                session_id=current_session.id
+            )
+            db.session.add(review)
+
+            # Update session stats
+            current_session.problems_reviewed += 1
+            current_session.total_time_seconds += time_spent
+
+            # Get next problem (excluding already reviewed/skipped ones)
+            problems_with_stats = db.session.query(Problem, ProblemStats).outerjoin(ProblemStats).filter(Problem.is_active == True).all()
+            session_problems = get_session_problems(problems_with_stats, session_size=1)
+
+            db.session.commit()
+
+            if not session_problems:
+                return jsonify({
+                    'success': True,
+                    'no_problems': True,
+                    'message': 'No more problems available'
+                })
+
+            next_problem = session_problems[0]
+            return jsonify({
+                'success': True,
+                'problem': next_problem.to_dict(),
+                'session': current_session.to_dict(),
+                'message': 'Problem skipped'
+            })
+
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': str(e)}), 500
+
     @app.route('/session/complete', methods=['POST'])
     def complete_session():
         """Complete the current session"""
