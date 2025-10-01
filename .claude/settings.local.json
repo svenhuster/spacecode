@@ -23,7 +23,10 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(curl:*)",
-      "Read(//home/slh/config/**)"
+      "Read(//home/slh/config/**)",
+      "Bash(home-manager switch:*)",
+      "Bash(nix flake lock:*)",
+      "Bash(systemctl:*)"
     ],
     "deny": [],
     "ask": []

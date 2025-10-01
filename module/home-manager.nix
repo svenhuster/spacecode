@@ -35,11 +35,6 @@ in
       description = "Directory to store SpacedCode data (database, backups).";
     };
 
-    idleTimeout = mkOption {
-      type = types.int;
-      default = 480; # 8 hours in minutes
-      description = "Idle timeout in minutes before auto-shutdown (default: 480 = 8 hours).";
-    };
 
     allowRemote = mkOption {
       type = types.bool;
@@ -64,33 +59,16 @@ in
     # Create data directory
     home.file."${removePrefix config.home.homeDirectory cfg.dataDir}/.keep".text = "";
 
-    # Socket activation
-    systemd.user.sockets.spacedcode = {
-      Unit = {
-        Description = "SpacedCode socket";
-        Documentation = "https://github.com/example/spacedcode";
-      };
-      Socket = {
-        ListenStream = "${cfg.host}:${toString cfg.port}";
-        Accept = false;
-        SocketUser = config.home.username;
-        SocketMode = "0600";
-      };
-      Install = {
-        WantedBy = [ "sockets.target" ];
-      };
-    };
-
     # Service configuration
     systemd.user.services.spacedcode = {
       Unit = {
         Description = "SpacedCode LeetCode Spaced Repetition System";
         Documentation = "https://github.com/example/spacedcode";
-        Requires = [ "spacedcode.socket" ];
-        After = [ "spacedcode.socket" ];
+        After = [ "graphical-session.target" ];
+        Wants = [ "graphical-session.target" ];
       };
       Service = {
-        Type = "notify";
+        Type = "simple";
         ExecStart = "${cfg.package}/bin/spacedcode";
         Restart = "on-failure";
         RestartSec = "5s";
@@ -102,10 +80,8 @@ in
           "SPACEDCODE_PORT=${toString cfg.port}"
           "SPACEDCODE_HOST=${if cfg.allowRemote then "0.0.0.0" else cfg.host}"
           "SPACEDCODE_DATA_DIR=${cfg.dataDir}"
-          "SPACEDCODE_IDLE_TIMEOUT=${toString cfg.idleTimeout}"
           "SPACEDCODE_ALLOW_REMOTE=${if cfg.allowRemote then "true" else "false"}"
           "SPACEDCODE_DEBUG=${if cfg.debug then "true" else "false"}"
-          "SPACEDCODE_SOCKET_ACTIVATION=true"
         ];
 
         # Security settings
@@ -127,6 +103,9 @@ in
         # Resource limits
         MemoryMax = "512M";
         TasksMax = 50;
+      };
+      Install = {
+        WantedBy = [ "default.target" ];
       };
     };
 
