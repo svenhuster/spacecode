@@ -23,6 +23,8 @@
             alembic
           ];
 
+          nativeBuildInputs = [ pkgs.makeWrapper ];
+
           dontBuild = true;
 
           installPhase = ''
@@ -39,14 +41,10 @@
               [ -f "$file" ] && cp "$file" $out/share/spacedcode/ || true
             done
 
-            # Create wrapper script that always runs the installed version
+            # Create wrapper script with proper Python environment
             mkdir -p $out/bin
-            cat > $out/bin/spacedcode << EOF
-#!/usr/bin/env bash
-# Always run the installed version from Nix store (production mode)
-exec ${pkgs.python3}/bin/python3 $out/share/spacedcode/app.py "\$@"
-EOF
-            chmod +x $out/bin/spacedcode
+            makeWrapper ${pkgs.python3.withPackages (ps: propagatedBuildInputs)}/bin/python3 $out/bin/spacedcode \
+              --add-flags "$out/share/spacedcode/app.py"
           '';
 
           meta = with pkgs.lib; {
