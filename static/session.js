@@ -128,7 +128,14 @@ function submitRating(rating) {
             time_spent: timeSpent
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json().catch(jsonError => {
+            throw new Error('Invalid JSON response from server');
+        });
+    })
     .then(data => {
         if (data.success) {
             sessionData.push({
@@ -161,8 +168,8 @@ function submitRating(rating) {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        alert('Error submitting review');
+        console.error('Error submitting review:', error);
+        alert('Error submitting review: ' + error.message);
         currentCard.querySelectorAll('button').forEach(btn => btn.disabled = false);
     });
 }
