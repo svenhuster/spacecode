@@ -13,6 +13,11 @@ from config import Config
 from utils import get_data_directory
 
 
+def get_app_base_path():
+    """Get the base path of the application (handles both dev and packaged)"""
+    return os.path.dirname(os.path.abspath(__file__))
+
+
 def create_database_backup(data_dir):
     """Create a backup of the SQLite database on app startup"""
     db_path = os.path.join(data_dir, 'leetcode.db')
@@ -46,6 +51,7 @@ def run_alembic_migrations(database_url):
     try:
         # Set environment variable to indicate we're running from app
         os.environ['ALEMBIC_FROM_APP'] = 'true'
+        os.environ['ALEMBIC_DATABASE_URL'] = database_url
 
         # Find alembic.ini in the same directory as this script
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -57,6 +63,9 @@ def run_alembic_migrations(database_url):
 
         # Create Alembic config
         alembic_cfg = AlembicConfig(alembic_cfg_path)
+
+        # Set script_location to absolute path for packaged deployment
+        alembic_cfg.set_main_option('script_location', os.path.join(script_dir, 'alembic'))
 
         # Set the database URL directly to avoid env.py recursion
         alembic_cfg.set_main_option('sqlalchemy.url', database_url)
@@ -80,12 +89,16 @@ def run_alembic_migrations(database_url):
         print(f"⚠ Warning: Could not run Alembic migrations: {e}")
         print("  The app will continue with the current database schema.")
     finally:
-        # Clean up environment variable
+        # Clean up environment variables
         os.environ.pop('ALEMBIC_FROM_APP', None)
+        os.environ.pop('ALEMBIC_DATABASE_URL', None)
 
 
 def create_app():
-    app = Flask(__name__)
+    base_path = get_app_base_path()
+    app = Flask(__name__,
+                template_folder=os.path.join(base_path, 'templates'),
+                static_folder=os.path.join(base_path, 'static'))
 
     # Load configuration
     app.config['SECRET_KEY'] = Config.SECRET_KEY

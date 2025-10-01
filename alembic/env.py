@@ -23,24 +23,18 @@ if config.config_file_name is not None:
 from models import db
 target_metadata = db.metadata
 
-# Check if we're running from Alembic CLI vs app startup
-if os.environ.get('ALEMBIC_FROM_APP') == 'true':
-    # Running from app startup - database URL already set in config
-    # Don't create Flask app to avoid circular imports
-    pass
+# Get database URL from environment if provided (from app startup)
+database_url = os.environ.get('ALEMBIC_DATABASE_URL')
+if database_url:
+    config.set_main_option('sqlalchemy.url', database_url)
 elif os.environ.get('ALEMBIC_TESTING') == 'true':
     # Direct database URL for testing (will be set by test script)
     pass
 else:
-    # Normal CLI operation - need to get database URL from Flask config
-    # Set database URL manually to avoid circular dependency
-    if os.path.exists(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.git')):
-        # Development mode - use local data directory
-        db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'leetcode.db')
-    else:
-        # Production mode - use user's data directory
-        db_path = os.path.join(os.path.expanduser('~'), '.local', 'share', 'spacecode', 'leetcode.db')
-
+    # Normal CLI operation - determine database location
+    from utils import get_data_directory
+    data_dir = get_data_directory()
+    db_path = os.path.join(data_dir, 'leetcode.db')
     config.set_main_option('sqlalchemy.url', f'sqlite:///{db_path}')
 
 # other values from the config, defined by the needs of env.py,

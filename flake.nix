@@ -44,7 +44,8 @@
             # Create wrapper script with proper Python environment
             mkdir -p $out/bin
             makeWrapper ${pkgs.python3.withPackages (ps: propagatedBuildInputs)}/bin/python3 $out/bin/spacedcode \
-              --add-flags "$out/share/spacedcode/app.py"
+              --add-flags "$out/share/spacedcode/app.py" \
+              --set PYTHONPATH "$out/share/spacedcode"
           '';
 
           meta = with pkgs.lib; {
