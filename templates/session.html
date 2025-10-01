@@ -8,15 +8,15 @@
         <h1>Practice Session</h1>
         <div class="session-info">
             <div class="session-progress">
-                <span id="time-remaining">{{ "%02d:%02d"|format(((session.get_remaining_seconds() or 2700)//60), ((session.get_remaining_seconds() or 2700)%60)) }}</span>
+                <span id="time-remaining">{{ "%02d:%02d"|format(((current_session.get_remaining_seconds() or 2700)//60), ((current_session.get_remaining_seconds() or 2700)%60)) }}</span>
                 <span class="progress-label">remaining</span>
             </div>
             <div class="session-stats">
-                <span id="problems-completed">{{ session.problems_reviewed }}</span>
+                <span id="problems-completed">{{ current_session.problems_reviewed }}</span>
                 <span class="stats-label">problems completed</span>
             </div>
             <div class="session-duration">
-                <span id="session-duration">{{ session.max_duration_minutes or 45 }}</span>
+                <span id="session-duration">{{ current_session.max_duration_minutes or 45 }}</span>
                 <span class="duration-label">min session</span>
             </div>
         </div>
