@@ -60,7 +60,8 @@ def calculate_next_review(rating, current_interval_hours, easiness_factor, repet
     Spaced repetition algorithm optimized for 2 sessions/day with gradual progression.
 
     Args:
-        rating: 0 (Failed) to 5 (Easy)
+        rating: 0 (Failed) to 5 (Fluent) - problem-solving stages:
+                0=Failed, 1=Solution, 2=Errors, 3=Debug, 4=Solved, 5=Fluent
         current_interval_hours: Current interval in hours
         easiness_factor: Easiness factor (1.3 to 2.5+)
         repetitions: Number of successful repetitions
@@ -74,11 +75,11 @@ def calculate_next_review(rating, current_interval_hours, easiness_factor, repet
     # Base intervals for 2 sessions/day (morning & midday) in hours
     base_intervals = {
         0: 4,    # Failed: 4 hours (next session)
-        1: 6,    # Very Hard: 6 hours (next session)
-        2: 12,   # Hard: 12 hours (next day morning)
-        3: 24,   # Medium: 24 hours (next day)
-        4: 48,   # Good: 48 hours (2 days)
-        5: 96    # Easy: 96 hours (4 days)
+        1: 6,    # Solution: 6 hours (next session)
+        2: 12,   # Errors: 12 hours (next day morning)
+        3: 24,   # Debug: 24 hours (next day)
+        4: 48,   # Solved: 48 hours (2 days)
+        5: 96    # Fluent: 96 hours (4 days)
     }
 
     # Calculate effective rating using history if available
@@ -147,7 +148,7 @@ def get_due_problems(problems_with_stats, limit=None, randomize=True):
         # Difficulty weight (prioritize harder problems slightly)
         difficulty_weight = {'Easy': 1, 'Medium': 2, 'Hard': 3}.get(problem.difficulty, 2)
 
-        # Problems that were failed recently get higher priority
+        # Problems that had issues recently get higher priority (Failed/Solution/Errors)
         failure_weight = 10 if stats.last_rating is not None and stats.last_rating <= 2 else 1
 
         return (-overdue_hours * failure_weight * difficulty_weight, random.random())
@@ -191,7 +192,7 @@ def get_session_problems(all_problems_with_stats, session_size=1):
     # Categorize problems
     new_problems = []           # Never reviewed
     overdue_problems = []       # Past due date
-    failed_recent = []          # Recently rated 0-2
+    failed_recent = []          # Recently had issues (Failed/Solution/Errors)
     reinforcement_problems = [] # Recent low ratings but not due
 
     for problem, stats in all_problems_with_stats:
@@ -220,7 +221,7 @@ def get_session_problems(all_problems_with_stats, session_size=1):
     # Select problems with priority ordering
     selected_problems = []
 
-    # 1. Failed recent problems (highest priority)
+    # 1. Problems with recent issues (highest priority)
     selected_problems.extend(failed_recent[:review_slots//2])
     remaining_review = review_slots - len(selected_problems)
 
@@ -270,7 +271,7 @@ def get_next_problem(all_problems_with_stats):
                 overdue_hours = (now - stats.next_review).total_seconds() / 3600
                 score = 200 + min(overdue_hours * 10, 500)  # Cap at 700
 
-                # Boost failed problems
+                # Boost problems with recent issues
                 if stats.last_rating is not None and stats.last_rating <= 2:
                     score += 300
                     category = "failed_recent"
