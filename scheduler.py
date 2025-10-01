@@ -1,46 +1,111 @@
 from datetime import datetime, timedelta
 import random
 
-def calculate_next_review(rating, current_interval_hours, easiness_factor, repetitions):
+def calculate_effective_rating(new_rating, problem_id, problem_stats):
     """
-    Aggressive spaced repetition algorithm optimized for 4+ daily sessions.
+    Calculate effective rating using performance history to prevent jumping.
+
+    Args:
+        new_rating: Current rating (0-5)
+        problem_id: ID of the problem being rated
+        problem_stats: ProblemStats object for the problem
+
+    Returns:
+        float: Effective rating based on weighted history
+    """
+    if problem_stats is None or problem_stats.total_reviews == 0:
+        return new_rating
+
+    # Import here to avoid circular import
+    from models import Review
+
+    # Get last 5 reviews for this problem
+    recent_reviews = Review.query.filter_by(problem_id=problem_id)\
+                          .order_by(Review.reviewed_at.desc())\
+                          .limit(5).all()
+
+    if len(recent_reviews) < 2:
+        # Not enough history, constrain rating jumps
+        if problem_stats.last_rating is not None:
+            max_increase = problem_stats.last_rating + 1.5
+            return min(new_rating, max_increase)
+        return min(new_rating, 3)  # Cap new problems at medium
+
+    # Calculate weighted average (recent reviews weighted more)
+    weights = [0.35, 0.25, 0.20, 0.15, 0.05]  # Most recent = 35%
+    weighted_sum = 0
+    weight_total = 0
+
+    for i, review in enumerate(recent_reviews):
+        if i < len(weights):
+            weighted_sum += review.rating * weights[i]
+            weight_total += weights[i]
+
+    # Include current rating with highest weight
+    weighted_sum += new_rating * 0.35
+    weight_total += 0.35
+
+    effective_rating = weighted_sum / weight_total
+
+    # Prevent large jumps (max 1.5 points increase from last rating)
+    if problem_stats.last_rating is not None:
+        max_increase = problem_stats.last_rating + 1.5
+        effective_rating = min(effective_rating, max_increase)
+
+    # Ensure rating stays within bounds
+    return max(0, min(5, effective_rating))
+
+def calculate_next_review(rating, current_interval_hours, easiness_factor, repetitions, problem_id=None, problem_stats=None):
+    """
+    Spaced repetition algorithm optimized for 2 sessions/day with gradual progression.
 
     Args:
         rating: 0 (Failed) to 5 (Easy)
         current_interval_hours: Current interval in hours
         easiness_factor: Easiness factor (1.3 to 2.5+)
         repetitions: Number of successful repetitions
+        problem_id: ID of the problem (for history lookup)
+        problem_stats: ProblemStats object for history access
 
     Returns:
         tuple: (next_interval_hours, new_easiness_factor)
     """
 
-    # Base intervals for aggressive study (in hours)
+    # Base intervals for 2 sessions/day (morning & midday) in hours
     base_intervals = {
-        0: 1,    # Failed: 1 hour
-        1: 2,    # Very Hard: 2 hours
-        2: 4,    # Hard: 4 hours
-        3: 8,    # Medium: 8 hours
-        4: 24,   # Good: 24 hours (1 day)
-        5: 72    # Easy: 72 hours (3 days)
+        0: 4,    # Failed: 4 hours (next session)
+        1: 6,    # Very Hard: 6 hours (next session)
+        2: 12,   # Hard: 12 hours (next day morning)
+        3: 24,   # Medium: 24 hours (next day)
+        4: 48,   # Good: 48 hours (2 days)
+        5: 96    # Easy: 96 hours (4 days)
     }
 
-    # Update easiness factor based on rating
-    new_easiness_factor = easiness_factor + (0.1 - (5 - rating) * (0.08 + (5 - rating) * 0.02))
-    new_easiness_factor = max(1.3, new_easiness_factor)  # Minimum EF of 1.3
+    # Calculate effective rating using history if available
+    if problem_id is not None and problem_stats is not None:
+        effective_rating = calculate_effective_rating(rating, problem_id, problem_stats)
+    else:
+        effective_rating = rating
+
+    # Update easiness factor based on effective rating (gentler adjustments)
+    new_easiness_factor = easiness_factor + (0.05 - (5 - effective_rating) * 0.03)
+    new_easiness_factor = max(1.3, min(2.5, new_easiness_factor))  # Keep between 1.3 and 2.5
+
+    # Determine base interval based on effective rating
+    interval_key = min(5, max(0, int(effective_rating + 0.5)))  # Round to nearest
+    next_interval = base_intervals[interval_key]
 
     # For first few repetitions, use base intervals
-    if repetitions < 2 or rating < 3:
-        next_interval = base_intervals.get(rating, 1)
+    if repetitions < 2 or effective_rating < 3:
+        # Use base interval directly
+        pass
     else:
-        # For subsequent reviews, multiply by easiness factor
-        if rating >= 3:
-            next_interval = current_interval_hours * new_easiness_factor
-        else:
-            next_interval = base_intervals.get(rating, 1)  # Reset if struggling
+        # For subsequent reviews, multiply by easiness factor only if consistently good
+        if effective_rating >= 3:
+            next_interval = next_interval * new_easiness_factor
 
-    # Cap maximum interval at 1 week (168 hours) for aggressive study
-    next_interval = min(next_interval, 168)
+    # Cap maximum interval at 10 days (240 hours) for 2 sessions/day
+    next_interval = min(next_interval, 240)
 
     # Add small random factor to prevent scheduling conflicts
     random_factor = 1 + (random.random() - 0.5) * 0.1  # ±5% variation

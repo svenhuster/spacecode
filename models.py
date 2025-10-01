@@ -186,27 +186,33 @@ class ProblemStats(db.Model):
         return self.next_review <= datetime.utcnow()
 
     def update_stats(self, rating):
-        """Update stats after a review"""
-        from scheduler import calculate_next_review
+        """Update stats after a review using new weighted system"""
+        from scheduler import calculate_next_review, calculate_effective_rating
 
         self.last_rating = rating
         self.last_reviewed = datetime.utcnow()
         self.total_reviews += 1
 
-        # Update average rating
+        # Update average rating using exponential moving average for smoother transitions
         if self.average_rating is None:
             self.average_rating = rating
         else:
-            self.average_rating = (self.average_rating * (self.total_reviews - 1) + rating) / self.total_reviews
+            # Use exponential moving average (30% weight for new rating)
+            alpha = 0.3
+            self.average_rating = alpha * rating + (1 - alpha) * self.average_rating
 
-        # Calculate next review time
+        # Calculate next review time using new weighted system
         self.interval_hours, self.easiness_factor = calculate_next_review(
-            rating, self.interval_hours, self.easiness_factor, self.repetitions
+            rating, self.interval_hours, self.easiness_factor, self.repetitions,
+            self.problem_id, self  # Pass full stats object for history access
         )
 
         self.next_review = datetime.utcnow() + timedelta(hours=self.interval_hours)
 
-        if rating >= 3:
+        # Update repetitions based on effective performance
+        effective_rating = calculate_effective_rating(rating, self.problem_id, self)
+        if effective_rating >= 3:
             self.repetitions += 1
         else:
-            self.repetitions = 0  # Reset if struggling
+            # Gradual decrease instead of full reset for less harsh progression
+            self.repetitions = max(0, self.repetitions - 1)
