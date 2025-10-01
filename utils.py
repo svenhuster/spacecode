@@ -65,19 +65,13 @@ def check_duplicate_problem(url, number=None):
 
 
 def get_data_directory():
-    """Get the data directory path with consistent logic"""
+    """Get the data directory path - defaults to user directory, override with env var for development"""
     import os
 
-    # In development (when running from source), use local ./data directory
-    # In production (when installed), use user's data directory
-    if os.path.exists(os.path.join(os.path.dirname(__file__), '.git')) or \
-       os.path.exists(os.path.join(os.path.dirname(__file__), 'flake.nix')):
-        # Development mode - use local data directory
-        default_data_dir = os.path.join(os.path.dirname(__file__), 'data')
-    else:
-        # Production mode - use user's data directory
-        default_data_dir = os.path.join(os.path.expanduser('~'), '.local', 'share', 'spacedcode')
+    # Default to user's data directory (production/installed usage)
+    default_data_dir = os.path.join(os.path.expanduser('~'), '.local', 'share', 'spacedcode')
 
+    # Allow override via environment variable (for development or custom locations)
     data_dir = os.environ.get('SPACEDCODE_DATA_DIR', default_data_dir)
     os.makedirs(data_dir, exist_ok=True)
     return data_dir

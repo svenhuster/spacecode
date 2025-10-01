@@ -39,18 +39,12 @@
               [ -f "$file" ] && cp "$file" $out/share/spacedcode/ || true
             done
 
-            # Create wrapper script that runs from the current directory
+            # Create wrapper script that always runs the installed version
             mkdir -p $out/bin
             cat > $out/bin/spacedcode << EOF
 #!/usr/bin/env bash
-# Check if we're in a spacedcode project directory
-if [[ -f "./app.py" && -f "./alembic.ini" ]]; then
-  # Run from current directory (development mode)
-  exec ${pkgs.python3}/bin/python3 ./app.py "\$@"
-else
-  # Run from Nix store (packaged mode)
-  exec ${pkgs.python3}/bin/python3 $out/share/spacedcode/app.py "\$@"
-fi
+# Always run the installed version from Nix store (production mode)
+exec ${pkgs.python3}/bin/python3 $out/share/spacedcode/app.py "\$@"
 EOF
             chmod +x $out/bin/spacedcode
           '';
