@@ -29,7 +29,6 @@ function updateTimer() {
         // Time's up! Auto-complete session
         sessionCompleted = true;
         clearInterval(timerInterval);
-        alert('Session time expired! Completing your session.');
         completeSession();
         return;
     }
@@ -222,7 +221,6 @@ function skipProblem() {
                     clearInterval(timerInterval);
                     timerInterval = null;
                 }
-                alert(data.message || 'Session completed! No more problems available.');
                 completeSession();
                 return;
             }
@@ -245,14 +243,14 @@ function skipProblem() {
                 updateProgress();
             }
         } else {
-            alert('Error skipping problem: ' + (data.error || 'Unknown error'));
+            console.error('Error skipping problem:', data.error || 'Unknown error');
             // Re-enable buttons
             currentCard.querySelectorAll('button').forEach(btn => btn.disabled = false);
         }
     })
     .catch(error => {
         console.error('Error skipping problem:', error);
-        alert('Error skipping problem: ' + error.message);
+        // Re-enable buttons on error
         currentCard.querySelectorAll('button').forEach(btn => btn.disabled = false);
     });
 }
@@ -290,7 +288,6 @@ function nextProblem() {
                     clearInterval(timerInterval);
                     timerInterval = null;
                 }
-                alert('Session expired! Completing your session.');
                 completeSession();
                 return;
             }
@@ -319,13 +316,12 @@ function nextProblem() {
                     sessionTimeRemaining = data.session.remaining_seconds;
                 }
             } else {
-                alert('Error loading next problem: ' + (data.error || 'Unknown error'));
+                console.error('Error loading next problem:', data.error || 'Unknown error');
                 completeSession();
             }
         })
         .catch(error => {
             console.error('Error fetching next problem:', error);
-            alert('Error loading next problem. Completing session.');
             completeSession();
         })
         .finally(() => {
@@ -538,15 +534,13 @@ function pauseSession() {
         })
         .then(data => {
             if (data.success) {
-                alert('Session paused! You can resume from the dashboard.');
                 window.location.href = '/';
             } else {
-                alert('Error pausing session: ' + data.error);
+                console.error('Error pausing session:', data.error);
             }
         })
         .catch(error => {
             console.error('Error pausing session:', error);
-            alert('Error pausing session: ' + error.message);
         });
     }
 }
@@ -574,15 +568,13 @@ function abandonSession() {
         })
         .then(data => {
             if (data.success) {
-                alert('Session ended. Great work!');
                 window.location.href = '/';
             } else {
-                alert('Error ending session: ' + data.error);
+                console.error('Error ending session:', data.error);
             }
         })
         .catch(error => {
             console.error('Error ending session:', error);
-            alert('Error ending session: ' + error.message);
         });
     }
 }
