@@ -197,7 +197,14 @@ function nextProblem() {
 
     // Need to fetch next problem from server
     fetch('/session/next-problem')
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json().catch(jsonError => {
+                throw new Error('Invalid JSON response from server');
+            });
+        })
         .then(data => {
             if (data.session_expired) {
                 sessionCompleted = true;
@@ -216,7 +223,7 @@ function nextProblem() {
                 return;
             }
 
-            if (data.success && data.problem) {
+            if (data.problem) {
                 // Add new problem to the session
                 addNewProblemToSession(data.problem);
                 currentProblemIndex++;
