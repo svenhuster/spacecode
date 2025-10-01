@@ -121,9 +121,22 @@ def register_session_routes(app):
     def review_problem():
         """Submit a problem review"""
         try:
-            problem_id = int(request.form.get('problem_id'))
-            rating = int(request.form.get('rating'))
-            time_spent = int(request.form.get('time_spent', 0))
+            data = request.get_json()
+            if not data:
+                return jsonify({'error': 'Invalid JSON data'}), 400
+
+            problem_id = data.get('problem_id')
+            rating = data.get('rating')
+            time_spent = data.get('time_spent', 0)
+
+            if problem_id is None:
+                return jsonify({'error': 'Missing problem_id'}), 400
+            if rating is None:
+                return jsonify({'error': 'Missing rating'}), 400
+
+            problem_id = int(problem_id)
+            rating = int(rating)
+            time_spent = int(time_spent)
 
             if rating < 0 or rating > 5:
                 return jsonify({'error': 'Rating must be between 0 and 5'}), 400
