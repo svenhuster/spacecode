@@ -9,6 +9,7 @@ import json
 from models import db, Problem, Review, Session, ProblemStats
 from scheduler import get_session_problems, get_study_stats
 from utils import normalize_leetcode_url, extract_problem_number_from_url, check_duplicate_problem
+from idle_monitor import get_idle_monitor
 
 
 def register_api_routes(app):
@@ -239,4 +240,21 @@ def register_api_routes(app):
 
         except Exception as e:
             db.session.rollback()
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/idle-status')
+    def api_idle_status():
+        """Get idle monitor status"""
+        try:
+            idle_monitor = get_idle_monitor()
+            if not idle_monitor:
+                return jsonify({
+                    'enabled': False,
+                    'reason': 'Idle monitor not initialized'
+                })
+
+            status = idle_monitor.get_status()
+            return jsonify(status)
+
+        except Exception as e:
             return jsonify({'error': str(e)}), 500

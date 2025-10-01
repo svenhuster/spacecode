@@ -11,6 +11,7 @@ from alembic import command
 from models import db
 from config import Config
 from utils import get_data_directory
+from idle_monitor import create_idle_monitor, get_idle_monitor, record_activity, GracefulShutdown
 
 
 def get_app_base_path():
@@ -94,6 +95,16 @@ def run_alembic_migrations(database_url):
         os.environ.pop('ALEMBIC_DATABASE_URL', None)
 
 
+def create_idle_middleware(app):
+    """Create middleware to track activity for idle monitoring."""
+    @app.before_request
+    def track_activity():
+        # Record activity on every request
+        record_activity()
+
+    return app
+
+
 def create_app():
     base_path = get_app_base_path()
     app = Flask(__name__,
@@ -128,6 +139,9 @@ def create_app():
     register_problem_routes(app)
     register_api_routes(app)
 
+    # Set up idle monitoring middleware
+    create_idle_middleware(app)
+
     return app
 
 
@@ -142,6 +156,14 @@ if __name__ == '__main__':
     allow_remote = Config.allow_remote_connections()
     data_dir = get_data_directory()
 
+    # Initialize idle monitoring
+    idle_monitor = create_idle_monitor()
+    graceful_shutdown = GracefulShutdown(app)
+
+    # Start idle monitoring if socket activation is enabled
+    if idle_monitor.socket_activation:
+        idle_monitor.start_monitoring(graceful_shutdown.shutdown)
+
     print("Starting LeetCode Spaced Repetition System...")
     if allow_remote:
         print(f"Server will be available at: http://localhost:{port} (and all network interfaces)")
@@ -151,6 +173,12 @@ if __name__ == '__main__':
     print(f"Visit http://localhost:{port}/bookmarklet to install the bookmarklet")
     if not allow_remote:
         print("Note: Set SPACEDCODE_ALLOW_REMOTE=true to allow remote connections")
-    print("Press Ctrl+C to stop the server")
+    if not idle_monitor.socket_activation:
+        print("Press Ctrl+C to stop the server")
 
-    app.run(debug=debug, host=host, port=port)
+    try:
+        app.run(debug=debug, host=host, port=port)
+    finally:
+        # Stop idle monitoring on shutdown
+        if idle_monitor:
+            idle_monitor.stop_monitoring()

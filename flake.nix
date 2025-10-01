@@ -94,5 +94,11 @@
         devShells.default = pkgs.mkShell {
           inherit buildInputs nativeBuildInputs;
         };
+
+        # Home Manager module
+        homeModules = {
+          default = import ./module/home-manager.nix;
+          spacedcode = import ./module/home-manager.nix;
+        };
       });
 }
