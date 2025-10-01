@@ -240,7 +240,7 @@ def register_session_routes(app):
             # Get next problem (excluding already reviewed/skipped ones in this session)
             reviewed_problem_ids = db.session.query(Review.problem_id).filter(
                 Review.session_id == current_session.id
-            ).subquery()
+            )
 
             problems_with_stats = db.session.query(Problem, ProblemStats).outerjoin(ProblemStats).filter(
                 Problem.is_active == True,
