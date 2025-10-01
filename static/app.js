@@ -398,22 +398,4 @@ document.addEventListener('DOMContentLoaded', function() {
     window.UIUtils.addProgressIndicators();
 });
 
-// Service Worker registration for offline capability (optional)
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function() {
-        // Only register if we have a service worker file
-        fetch('/sw.js').then(function(response) {
-            if (response.ok) {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(function(registration) {
-                        console.log('SW registered: ', registration);
-                    })
-                    .catch(function(registrationError) {
-                        console.log('SW registration failed: ', registrationError);
-                    });
-            }
-        }).catch(function() {
-            // Service worker file doesn't exist, which is fine
-        });
-    });
-}
+// Removed service worker registration - not needed for single-user local app

@@ -18,7 +18,6 @@
 
           propagatedBuildInputs = with pkgs.python3.pkgs; [
             flask
-            flask-cors
             flask-sqlalchemy
             sqlalchemy
             alembic
@@ -76,7 +75,6 @@ EOF
           python312
           python312Packages.flask
           python312Packages.flask-sqlalchemy
-          python312Packages.flask-cors
           python312Packages.requests
           python312Packages.python-dateutil
           python312Packages.alembic
@@ -102,92 +100,5 @@ EOF
         devShells.default = pkgs.mkShell {
           inherit buildInputs nativeBuildInputs;
         };
-      }) // {
-        # Home Manager module (system-independent)
-        homeManagerModules.default = { config, lib, pkgs, ... }:
-          let
-            spacecodePackage = self.packages.${pkgs.system}.spacecode;
-            cfg = config.services.spacecode;
-          in
-          {
-            options.services.spacecode = {
-              enable = lib.mkEnableOption "SpaceCode LeetCode Spaced Repetition System";
-
-              port = lib.mkOption {
-                type = lib.types.port;
-                default = 1234;
-                description = "Port to run the SpaceCode server on";
-              };
-
-              dataDir = lib.mkOption {
-                type = lib.types.str;
-                default = "${config.home.homeDirectory}/.local/share/spacecode";
-                description = "Directory to store SpaceCode data";
-              };
-
-              debug = lib.mkOption {
-                type = lib.types.bool;
-                default = false;
-                description = "Enable debug mode";
-              };
-
-              allowRemote = lib.mkOption {
-                type = lib.types.bool;
-                default = false;
-                description = "Allow remote connections (bind to all interfaces instead of localhost only)";
-              };
-
-              openFirewall = lib.mkOption {
-                type = lib.types.bool;
-                default = false;
-                description = "Whether to open the firewall for the SpaceCode port";
-              };
-            };
-
-            config = lib.mkIf cfg.enable {
-              home.packages = [ spacecodePackage ];
-
-              systemd.user.services.spacecode = {
-                Unit = {
-                  Description = "SpaceCode LeetCode Spaced Repetition System";
-                  After = [ "network.target" ];
-                };
-
-                Service = {
-                  Type = "simple";
-                  ExecStart = "${spacecodePackage}/bin/spacecode";
-                  Restart = "always";
-                  RestartSec = 5;
-
-                  Environment = [
-                    "SPACECODE_PORT=${toString cfg.port}"
-                    "SPACECODE_DATA_DIR=${cfg.dataDir}"
-                    "SPACECODE_DEBUG=${if cfg.debug then "true" else "false"}"
-                    "SPACECODE_ALLOW_REMOTE=${if cfg.allowRemote then "true" else "false"}"
-                  ];
-
-                  # Security settings
-                  NoNewPrivileges = true;
-                  ProtectSystem = "strict";
-                  ProtectHome = "read-only";
-                  ReadWritePaths = [ cfg.dataDir ];
-                  PrivateTmp = true;
-                  ProtectKernelTunables = true;
-                  ProtectKernelModules = true;
-                  ProtectControlGroups = true;
-                };
-
-                Install = {
-                  WantedBy = [ "default.target" ];
-                };
-              };
-
-              # Create data directory
-              home.activation.spacecode-data-dir = lib.hm.dag.entryAfter ["writeBoundary"] ''
-                $DRY_RUN_CMD mkdir -p "${cfg.dataDir}"
-                $DRY_RUN_CMD chmod 755 "${cfg.dataDir}"
-              '';
-            };
-          };
-      };
+      });
 }
