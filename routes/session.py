@@ -237,8 +237,15 @@ def register_session_routes(app):
             current_session.problems_reviewed += 1
             current_session.total_time_seconds += time_spent
 
-            # Get next problem (excluding already reviewed/skipped ones)
-            problems_with_stats = db.session.query(Problem, ProblemStats).outerjoin(ProblemStats).filter(Problem.is_active == True).all()
+            # Get next problem (excluding already reviewed/skipped ones in this session)
+            reviewed_problem_ids = db.session.query(Review.problem_id).filter(
+                Review.session_id == current_session.id
+            ).subquery()
+
+            problems_with_stats = db.session.query(Problem, ProblemStats).outerjoin(ProblemStats).filter(
+                Problem.is_active == True,
+                ~Problem.id.in_(reviewed_problem_ids)
+            ).all()
             session_problems = get_session_problems(problems_with_stats, session_size=1)
 
             db.session.commit()
