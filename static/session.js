@@ -11,6 +11,7 @@ let isLoadingNextProblem = false;
 let timerInterval = null;
 let sessionCompleted = false;
 let autoOpenProblems = true;
+let totalProblems = 1; // Start with 1 problem from template
 
 // Timer - Update countdown and progress
 function updateTimer() {
