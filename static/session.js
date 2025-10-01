@@ -494,6 +494,24 @@ function completeSession() {
         headers: {
             'Content-Type': 'application/json',
         }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json().catch(jsonError => {
+            throw new Error('Invalid JSON response from server');
+        });
+    })
+    .then(data => {
+        if (data.success) {
+            console.log('Session completed successfully');
+        } else {
+            console.error('Error completing session:', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error completing session:', error);
     });
 }
 
@@ -510,7 +528,14 @@ function pauseSession() {
                 'Content-Type': 'application/json',
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json().catch(jsonError => {
+                throw new Error('Invalid JSON response from server');
+            });
+        })
         .then(data => {
             if (data.success) {
                 alert('Session paused! You can resume from the dashboard.');
@@ -520,8 +545,8 @@ function pauseSession() {
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            alert('Error pausing session');
+            console.error('Error pausing session:', error);
+            alert('Error pausing session: ' + error.message);
         });
     }
 }
@@ -539,7 +564,14 @@ function abandonSession() {
                 'Content-Type': 'application/json',
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json().catch(jsonError => {
+                throw new Error('Invalid JSON response from server');
+            });
+        })
         .then(data => {
             if (data.success) {
                 alert('Session ended. Great work!');
@@ -549,8 +581,8 @@ function abandonSession() {
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            alert('Error ending session');
+            console.error('Error ending session:', error);
+            alert('Error ending session: ' + error.message);
         });
     }
 }

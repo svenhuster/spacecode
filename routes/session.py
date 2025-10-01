@@ -265,25 +265,47 @@ def register_session_routes(app):
     @app.route('/session/complete', methods=['POST'])
     def complete_session():
         """Complete the current session"""
-        if 'current_session_id' in session:
-            current_session = Session.query.get(session['current_session_id'])
-            if current_session:
-                current_session.status = 'completed'
-                current_session.completed_at = datetime.utcnow()
-                db.session.commit()
-            session.pop('current_session_id', None)
-        return redirect(url_for('dashboard'))
+        try:
+            if 'current_session_id' in session:
+                current_session = Session.query.get(session['current_session_id'])
+                if current_session:
+                    current_session.status = 'completed'
+                    current_session.completed_at = datetime.utcnow()
+                    db.session.commit()
+                    session.pop('current_session_id', None)
+                    return jsonify({
+                        'success': True,
+                        'message': 'Session completed successfully'
+                    })
+                else:
+                    return jsonify({'error': 'Session not found'}), 404
+            else:
+                return jsonify({'error': 'No active session'}), 400
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': str(e)}), 500
 
     @app.route('/session/pause', methods=['POST'])
     def pause_session():
         """Pause the current session"""
-        if 'current_session_id' in session:
-            current_session = Session.query.get(session['current_session_id'])
-            if current_session:
-                current_session.status = 'paused'
-                current_session.paused_at = datetime.utcnow()
-                db.session.commit()
-        return redirect(url_for('dashboard'))
+        try:
+            if 'current_session_id' in session:
+                current_session = Session.query.get(session['current_session_id'])
+                if current_session:
+                    current_session.status = 'paused'
+                    current_session.paused_at = datetime.utcnow()
+                    db.session.commit()
+                    return jsonify({
+                        'success': True,
+                        'message': 'Session paused successfully'
+                    })
+                else:
+                    return jsonify({'error': 'Session not found'}), 404
+            else:
+                return jsonify({'error': 'No active session'}), 400
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': str(e)}), 500
 
     @app.route('/session/resume', methods=['POST'])
     def resume_session():
@@ -300,14 +322,25 @@ def register_session_routes(app):
     @app.route('/session/abandon', methods=['POST'])
     def abandon_session():
         """Abandon the current session"""
-        if 'current_session_id' in session:
-            current_session = Session.query.get(session['current_session_id'])
-            if current_session:
-                current_session.status = 'abandoned'
-                current_session.completed_at = datetime.utcnow()
-                db.session.commit()
-            session.pop('current_session_id', None)
-        return redirect(url_for('dashboard'))
+        try:
+            if 'current_session_id' in session:
+                current_session = Session.query.get(session['current_session_id'])
+                if current_session:
+                    current_session.status = 'abandoned'
+                    current_session.completed_at = datetime.utcnow()
+                    db.session.commit()
+                    session.pop('current_session_id', None)
+                    return jsonify({
+                        'success': True,
+                        'message': 'Session ended successfully'
+                    })
+                else:
+                    return jsonify({'error': 'Session not found'}), 404
+            else:
+                return jsonify({'error': 'No active session'}), 400
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': str(e)}), 500
 
     @app.route('/session/next-problem')
     def get_next_session_problem():
