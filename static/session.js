@@ -29,6 +29,7 @@ function updateTimer() {
         // Time's up! Auto-complete session
         sessionCompleted = true;
         clearInterval(timerInterval);
+        alert('Session time expired! Completing your session.');
         completeSession();
         return;
     }
@@ -220,6 +221,9 @@ function skipProblem() {
                 if (timerInterval) {
                     clearInterval(timerInterval);
                     timerInterval = null;
+                }
+                if (data.no_problems) {
+                    alert('No more problems available! Session completed.');
                 }
                 completeSession();
                 return;
