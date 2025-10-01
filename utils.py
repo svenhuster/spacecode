@@ -76,8 +76,8 @@ def get_data_directory():
         default_data_dir = os.path.join(os.path.dirname(__file__), 'data')
     else:
         # Production mode - use user's data directory
-        default_data_dir = os.path.join(os.path.expanduser('~'), '.local', 'share', 'spacecode')
+        default_data_dir = os.path.join(os.path.expanduser('~'), '.local', 'share', 'spacedcode')
 
-    data_dir = os.environ.get('SPACECODE_DATA_DIR', default_data_dir)
+    data_dir = os.environ.get('SPACEDCODE_DATA_DIR', default_data_dir)
     os.makedirs(data_dir, exist_ok=True)
     return data_dir

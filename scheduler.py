@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import random
+from config import Config
 
 def calculate_effective_rating(new_rating, problem_id, problem_stats):
     """
@@ -57,13 +58,13 @@ def calculate_effective_rating(new_rating, problem_id, problem_stats):
 
 def calculate_next_review(rating, current_interval_hours, easiness_factor, repetitions, problem_id=None, problem_stats=None):
     """
-    Spaced repetition algorithm optimized for 2 sessions/day with gradual progression.
+    Spaced repetition algorithm using configurable schedule profiles.
 
     Args:
         rating: 0 (Failed) to 5 (Fluent) - problem-solving stages:
                 0=Failed, 1=Solution, 2=Errors, 3=Debug, 4=Solved, 5=Fluent
         current_interval_hours: Current interval in hours
-        easiness_factor: Easiness factor (1.3 to 2.5+)
+        easiness_factor: Easiness factor (configurable range)
         repetitions: Number of successful repetitions
         problem_id: ID of the problem (for history lookup)
         problem_stats: ProblemStats object for history access
@@ -72,15 +73,11 @@ def calculate_next_review(rating, current_interval_hours, easiness_factor, repet
         tuple: (next_interval_hours, new_easiness_factor)
     """
 
-    # Base intervals for 2 sessions/day (morning & midday) in hours
-    base_intervals = {
-        0: 4,    # Failed: 4 hours (next session)
-        1: 6,    # Solution: 6 hours (next session)
-        2: 12,   # Errors: 12 hours (next day morning)
-        3: 24,   # Debug: 24 hours (next day)
-        4: 48,   # Solved: 48 hours (2 days)
-        5: 96    # Fluent: 96 hours (4 days)
-    }
+    # Get current schedule profile configuration
+    schedule = Config.get_current_schedule_profile()
+    base_intervals = schedule.base_intervals
+    max_interval = schedule.max_interval_hours
+    easiness_min, easiness_max = schedule.easiness_range
 
     # Calculate effective rating using history if available
     if problem_id is not None and problem_stats is not None:
@@ -90,7 +87,7 @@ def calculate_next_review(rating, current_interval_hours, easiness_factor, repet
 
     # Update easiness factor based on effective rating (gentler adjustments)
     new_easiness_factor = easiness_factor + (0.05 - (5 - effective_rating) * 0.03)
-    new_easiness_factor = max(1.3, min(2.5, new_easiness_factor))  # Keep between 1.3 and 2.5
+    new_easiness_factor = max(easiness_min, min(easiness_max, new_easiness_factor))
 
     # Determine base interval based on effective rating
     interval_key = min(5, max(0, int(effective_rating + 0.5)))  # Round to nearest
@@ -105,8 +102,8 @@ def calculate_next_review(rating, current_interval_hours, easiness_factor, repet
         if effective_rating >= 3:
             next_interval = next_interval * new_easiness_factor
 
-    # Cap maximum interval at 10 days (240 hours) for 2 sessions/day
-    next_interval = min(next_interval, 240)
+    # Cap maximum interval based on schedule profile
+    next_interval = min(next_interval, max_interval)
 
     # Add small random factor to prevent scheduling conflicts
     random_factor = 1 + (random.random() - 0.5) * 0.1  # ±5% variation

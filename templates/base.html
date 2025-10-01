@@ -30,6 +30,9 @@
                 <a href="{{ url_for('bookmarklet') }}" class="nav-link {% if request.endpoint == 'bookmarklet' %}active{% endif %}">
                     Bookmarklet
                 </a>
+                <a href="{{ url_for('settings') }}" class="nav-link {% if request.endpoint == 'settings' %}active{% endif %}">
+                    ⚙️ Settings
+                </a>
             </div>
         </div>
     </nav>

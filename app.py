@@ -137,7 +137,7 @@ if __name__ == '__main__':
     print(f"Data directory: {data_dir}")
     print(f"Visit http://localhost:{port}/bookmarklet to install the bookmarklet")
     if not allow_remote:
-        print("Note: Set SPACECODE_ALLOW_REMOTE=true to allow remote connections")
+        print("Note: Set SPACEDCODE_ALLOW_REMOTE=true to allow remote connections")
     print("Press Ctrl+C to stop the server")
 
     app.run(debug=debug, host=host, port=port)

@@ -216,3 +216,51 @@ class ProblemStats(db.Model):
         else:
             # Gradual decrease instead of full reset for less harsh progression
             self.repetitions = max(0, self.repetitions - 1)
+
+
+class UserSettings(db.Model):
+    __tablename__ = 'user_settings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    setting_key = db.Column(db.String(100), unique=True, nullable=False)
+    setting_value = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @staticmethod
+    def get_setting(key, default=None):
+        """Get a setting value by key"""
+        setting = UserSettings.query.filter_by(setting_key=key).first()
+        return setting.setting_value if setting else default
+
+    @staticmethod
+    def set_setting(key, value):
+        """Set a setting value by key"""
+        setting = UserSettings.query.filter_by(setting_key=key).first()
+        if setting:
+            setting.setting_value = str(value)
+            setting.updated_at = datetime.utcnow()
+        else:
+            setting = UserSettings(setting_key=key, setting_value=str(value))
+            db.session.add(setting)
+        db.session.commit()
+        return setting
+
+    @staticmethod
+    def get_schedule_profile():
+        """Get the current schedule profile preference"""
+        return UserSettings.get_setting('schedule_profile', 'aggressive')
+
+    @staticmethod
+    def set_schedule_profile(profile_name):
+        """Set the current schedule profile preference"""
+        return UserSettings.set_setting('schedule_profile', profile_name)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'setting_key': self.setting_key,
+            'setting_value': self.setting_value,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }

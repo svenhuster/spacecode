@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Application Overview
 
-This is a **LeetCode Spaced Repetition System** - a Flask web application that helps users practice LeetCode problems using spaced repetition algorithms. The app tracks problem difficulty, user performance ratings (0-5), and schedules reviews based on an aggressive spaced repetition algorithm optimized for 4+ daily practice sessions.
+This is a **LeetCode Spaced Repetition System** - a Flask web application that helps users practice LeetCode problems using spaced repetition algorithms. The app tracks problem difficulty, user performance ratings (0-5), and schedules reviews based on configurable spaced repetition algorithms with multiple schedule profiles to match different learning goals.
 
 ## Development Environment
 
@@ -31,8 +31,8 @@ python3 app.py      # Start server on http://localhost:1234
 - **ProblemStats**: Spaced repetition metadata (easiness factor, intervals, next review times)
 
 ### Spaced Repetition Engine (`scheduler.py`)
-- Implements aggressive algorithm with base intervals: 1h (failed) to 72h (easy)
-- Maximum interval capped at 1 week for aggressive study
+- Configurable algorithm with multiple schedule profiles
+- Schedule profiles: aggressive (interview prep), regular (standard study), relaxed (maintenance), intensive (bootcamp)
 - Problem scheduling based on overdue time, difficulty, and failure history
 - Session building combines due problems + recent low-rated problems for reinforcement
 

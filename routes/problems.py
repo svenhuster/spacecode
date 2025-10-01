@@ -151,3 +151,34 @@ def register_problem_routes(app):
     def bookmarklet():
         """Bookmarklet installation page"""
         return render_template('bookmarklet.html')
+
+    @app.route('/settings')
+    def settings():
+        """Settings page for schedule configuration"""
+        from config import Config
+
+        current_profile_name = Config.get_current_schedule_name()
+        current_profile = Config.get_current_schedule_profile()
+
+        return render_template('settings.html',
+                             profiles=Config.SCHEDULE_PROFILES,
+                             current_profile=current_profile,
+                             current_profile_name=current_profile_name)
+
+    @app.route('/settings/update', methods=['POST'])
+    def update_settings():
+        """Update schedule settings"""
+        from models import UserSettings
+        from config import Config
+
+        profile_name = request.form.get('schedule_profile')
+
+        if profile_name in Config.SCHEDULE_PROFILES:
+            # Save to database for persistence
+            UserSettings.set_schedule_profile(profile_name)
+            profile = Config.SCHEDULE_PROFILES[profile_name]
+            flash(f'Schedule updated to {profile.name}!', 'success')
+        else:
+            flash('Invalid schedule profile selected', 'error')
+
+        return redirect(url_for('settings'))

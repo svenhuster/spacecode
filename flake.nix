@@ -8,9 +8,9 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
 
-        # Package definition for SpaceCode
-        spacecode = pkgs.python3.pkgs.buildPythonApplication rec {
-          pname = "spacecode";
+        # Package definition for SpacedCode
+        spacedcode = pkgs.python3.pkgs.buildPythonApplication rec {
+          pname = "spacedcode";
           version = "1.0.0";
           format = "other";
 
@@ -26,38 +26,38 @@
           dontBuild = true;
 
           installPhase = ''
-            mkdir -p $out/share/spacecode
+            mkdir -p $out/share/spacedcode
 
             # Copy all source files including templates and static assets
-            cp -r . $out/share/spacecode/
+            cp -r . $out/share/spacedcode/
 
             # Remove development artifacts
-            rm -rf $out/share/spacecode/.git $out/share/spacecode/.direnv $out/share/spacecode/__pycache__ $out/share/spacecode/result || true
+            rm -rf $out/share/spacedcode/.git $out/share/spacedcode/.direnv $out/share/spacedcode/__pycache__ $out/share/spacedcode/result || true
 
             # Copy other important files
             for file in requirements.txt .gitignore README.md; do
-              [ -f "$file" ] && cp "$file" $out/share/spacecode/ || true
+              [ -f "$file" ] && cp "$file" $out/share/spacedcode/ || true
             done
 
             # Create wrapper script that runs from the current directory
             mkdir -p $out/bin
-            cat > $out/bin/spacecode << EOF
+            cat > $out/bin/spacedcode << EOF
 #!/usr/bin/env bash
-# Check if we're in a spacecode project directory
+# Check if we're in a spacedcode project directory
 if [[ -f "./app.py" && -f "./alembic.ini" ]]; then
   # Run from current directory (development mode)
   exec ${pkgs.python3}/bin/python3 ./app.py "\$@"
 else
   # Run from Nix store (packaged mode)
-  exec ${pkgs.python3}/bin/python3 $out/share/spacecode/app.py "\$@"
+  exec ${pkgs.python3}/bin/python3 $out/share/spacedcode/app.py "\$@"
 fi
 EOF
-            chmod +x $out/bin/spacecode
+            chmod +x $out/bin/spacedcode
           '';
 
           meta = with pkgs.lib; {
-            description = "SpaceCode - A Flask app for practicing LeetCode problems with spaced repetition";
-            homepage = "https://github.com/example/spacecode";
+            description = "SpacedCode - A Flask app for practicing LeetCode problems with spaced repetition";
+            homepage = "https://github.com/example/spacedcode";
             license = licenses.mit;
             maintainers = [ ];
             platforms = platforms.unix;
@@ -72,6 +72,7 @@ EOF
         ];
 
         buildInputs = with pkgs; [
+          # Python and packages needed for development
           python312
           python312Packages.flask
           python312Packages.flask-sqlalchemy
@@ -84,15 +85,15 @@ EOF
       {
         # Package outputs
         packages = {
-          default = spacecode;
-          spacecode = spacecode;
+          default = spacedcode;
+          spacedcode = spacedcode;
         };
 
         # App outputs for easy running
         apps = {
           default = {
             type = "app";
-            program = "${spacecode}/bin/spacecode";
+            program = "${spacedcode}/bin/spacedcode";
           };
         };
 

@@ -37,6 +37,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Add loading states to buttons
     enhanceButtons();
+
+    // Add schedule profile selection handling
+    enhanceScheduleSelection();
 });
 
 function addKeyboardShortcuts() {
@@ -397,5 +400,49 @@ document.addEventListener('DOMContentLoaded', function() {
     window.UIUtils.addSmoothScrolling();
     window.UIUtils.addProgressIndicators();
 });
+
+function enhanceScheduleSelection() {
+    // Handle schedule profile selection highlighting
+    const profileCards = document.querySelectorAll('.profile-card');
+    const profileRadios = document.querySelectorAll('input[name="schedule_profile"]');
+
+    if (profileCards.length === 0 || profileRadios.length === 0) {
+        return; // Not on settings page
+    }
+
+    function updateActiveCard() {
+        // Remove active class from all cards
+        profileCards.forEach(card => card.classList.remove('active'));
+
+        // Add active class to the selected card
+        profileRadios.forEach(radio => {
+            if (radio.checked) {
+                const card = radio.closest('.profile-card');
+                if (card) {
+                    card.classList.add('active');
+                }
+            }
+        });
+    }
+
+    // Add click listeners to profile cards
+    profileCards.forEach(card => {
+        card.addEventListener('click', function() {
+            const radio = this.querySelector('input[type="radio"]');
+            if (radio) {
+                radio.checked = true;
+                updateActiveCard();
+            }
+        });
+    });
+
+    // Add change listeners to radio buttons
+    profileRadios.forEach(radio => {
+        radio.addEventListener('change', updateActiveCard);
+    });
+
+    // Initial update
+    updateActiveCard();
+}
 
 // Removed service worker registration - not needed for single-user local app
