@@ -8,6 +8,32 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
 
+        # Configuration defaults
+        configDefaults = {
+          port = 1234;
+          host = "127.0.0.1";
+          debug = false;
+          allowRemote = false;
+          schedule = "aggressive";
+          secretKey = "leetcode-srs-secret-key-change-in-production";
+        };
+
+        # Development configuration overrides
+        devConfig = configDefaults // {
+          port = 1235;
+          debug = true;
+        };
+
+        # Convert config to environment variables
+        configToEnv = config: {
+          SPACEDCODE_PORT = toString config.port;
+          SPACEDCODE_HOST = config.host;
+          SPACEDCODE_DEBUG = if config.debug then "true" else "false";
+          SPACEDCODE_ALLOW_REMOTE = if config.allowRemote then "true" else "false";
+          SPACEDCODE_SCHEDULE = config.schedule;
+          SECRET_KEY = config.secretKey;
+        };
+
         # Package definition for SpacedCode
         spacedcode = pkgs.python3.pkgs.buildPythonApplication rec {
           pname = "spacedcode";
@@ -41,11 +67,17 @@
               [ -f "$file" ] && cp "$file" $out/share/spacedcode/ || true
             done
 
-            # Create wrapper script with proper Python environment
+            # Create wrapper script with proper Python environment and config
             mkdir -p $out/bin
             makeWrapper ${pkgs.python3.withPackages (ps: propagatedBuildInputs)}/bin/python3 $out/bin/spacedcode \
               --add-flags "$out/share/spacedcode/app.py" \
-              --set PYTHONPATH "$out/share/spacedcode"
+              --set PYTHONPATH "$out/share/spacedcode" \
+              --set SPACEDCODE_PORT "${toString configDefaults.port}" \
+              --set SPACEDCODE_HOST "${configDefaults.host}" \
+              --set SPACEDCODE_DEBUG "${if configDefaults.debug then "true" else "false"}" \
+              --set SPACEDCODE_ALLOW_REMOTE "${if configDefaults.allowRemote then "true" else "false"}" \
+              --set SPACEDCODE_SCHEDULE "${configDefaults.schedule}" \
+              --set SECRET_KEY "${configDefaults.secretKey}"
           '';
 
           meta = with pkgs.lib; {
@@ -91,21 +123,9 @@
         };
 
         # Development shell
-        devShells.default = pkgs.mkShell {
+        devShells.default = pkgs.mkShell (configToEnv devConfig // {
           inherit buildInputs nativeBuildInputs;
-          shellHook = ''
-            export SPACEDCODE_PORT=1235
-            echo "🚀 SpacedCode development environment"
-            echo "   Development server will run on port 1235"
-            echo "   Production service runs on port 1234"
-            echo ""
-            echo "Available commands:"
-            echo "   python3 app.py          - Start development server"
-            echo "   python3 init_db.py      - Initialize database"
-            echo "   ./run.sh                - Start with browser opening"
-            echo ""
-          '';
-        };
+        });
 
         # Home Manager module
         homeModules = {

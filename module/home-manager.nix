@@ -48,6 +48,18 @@ in
       description = "Enable debug mode.";
     };
 
+    schedule = mkOption {
+      type = types.enum [ "aggressive" "regular" "relaxed" "intensive" ];
+      default = "aggressive";
+      description = "Spaced repetition schedule profile to use.";
+    };
+
+    secretKey = mkOption {
+      type = types.str;
+      default = "leetcode-srs-secret-key-change-in-production";
+      description = "Secret key for Flask sessions.";
+    };
+
     openFirewall = mkOption {
       type = types.bool;
       default = false;
@@ -78,10 +90,12 @@ in
         # Environment variables
         Environment = [
           "SPACEDCODE_PORT=${toString cfg.port}"
-          "SPACEDCODE_HOST=${if cfg.allowRemote then "0.0.0.0" else cfg.host}"
+          "SPACEDCODE_HOST=${cfg.host}"
           "SPACEDCODE_DATA_DIR=${cfg.dataDir}"
           "SPACEDCODE_ALLOW_REMOTE=${if cfg.allowRemote then "true" else "false"}"
           "SPACEDCODE_DEBUG=${if cfg.debug then "true" else "false"}"
+          "SPACEDCODE_SCHEDULE=${cfg.schedule}"
+          "SECRET_KEY=${cfg.secretKey}"
         ];
 
         # Security settings

@@ -39,10 +39,12 @@ class ScheduleProfile:
 
 
 class Config:
-    """Base configuration class"""
+    """Base configuration class - all values read from environment"""
 
     # Security
-    SECRET_KEY = 'leetcode-srs-secret-key-change-in-production'
+    SECRET_KEY = os.environ.get('SECRET_KEY')
+    if not SECRET_KEY:
+        raise RuntimeError("SECRET_KEY environment variable is required")
 
     # Database
     @staticmethod
@@ -52,10 +54,6 @@ class Config:
 
     # SQLAlchemy
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-
-    # Server settings
-    DEFAULT_PORT = 1234
-    DEFAULT_HOST = '127.0.0.1'
 
     # Spaced Repetition Schedule Profiles
     SCHEDULE_PROFILES = {
@@ -124,26 +122,19 @@ class Config:
         )
     }
 
-    # Current schedule profile (can be overridden by environment or database)
+    # Current schedule profile (required from environment)
     @classmethod
     def get_current_schedule_profile(cls):
-        # First check environment variable
+        # Get from environment variable (required)
         env_profile = os.environ.get('SPACEDCODE_SCHEDULE')
-        if env_profile and env_profile in cls.SCHEDULE_PROFILES:
-            return cls.SCHEDULE_PROFILES[env_profile]
+        if not env_profile:
+            raise RuntimeError("SPACEDCODE_SCHEDULE environment variable is required")
 
-        # Then check database settings (requires app context)
-        try:
-            from models import UserSettings
-            db_profile = UserSettings.get_schedule_profile()
-            if db_profile and db_profile in cls.SCHEDULE_PROFILES:
-                return cls.SCHEDULE_PROFILES[db_profile]
-        except Exception:
-            # App context not available or database not initialized
-            pass
+        if env_profile not in cls.SCHEDULE_PROFILES:
+            available = ', '.join(cls.SCHEDULE_PROFILES.keys())
+            raise RuntimeError(f"Invalid schedule profile '{env_profile}'. Available: {available}")
 
-        # Fall back to default
-        return cls.SCHEDULE_PROFILES['aggressive']
+        return cls.SCHEDULE_PROFILES[env_profile]
 
     @classmethod
     def get_current_schedule_name(cls):
@@ -154,20 +145,32 @@ class Config:
                 return name
         return 'aggressive'
 
-    # Environment-based settings
+    # Environment-based settings (required)
     @staticmethod
     def get_port():
-        return int(os.environ.get('SPACEDCODE_PORT', Config.DEFAULT_PORT))
+        port = os.environ.get('SPACEDCODE_PORT')
+        if not port:
+            raise RuntimeError("SPACEDCODE_PORT environment variable is required")
+        return int(port)
 
     @staticmethod
     def get_host():
+        host = os.environ.get('SPACEDCODE_HOST')
+        if not host:
+            raise RuntimeError("SPACEDCODE_HOST environment variable is required")
         allow_remote = os.environ.get('SPACEDCODE_ALLOW_REMOTE', 'false').lower() == 'true'
-        return '0.0.0.0' if allow_remote else Config.DEFAULT_HOST
+        return '0.0.0.0' if allow_remote else host
 
     @staticmethod
     def is_debug():
-        return os.environ.get('SPACEDCODE_DEBUG', 'false').lower() == 'true'
+        debug = os.environ.get('SPACEDCODE_DEBUG')
+        if debug is None:
+            raise RuntimeError("SPACEDCODE_DEBUG environment variable is required")
+        return debug.lower() == 'true'
 
     @staticmethod
     def allow_remote_connections():
-        return os.environ.get('SPACEDCODE_ALLOW_REMOTE', 'false').lower() == 'true'
+        allow_remote = os.environ.get('SPACEDCODE_ALLOW_REMOTE')
+        if allow_remote is None:
+            raise RuntimeError("SPACEDCODE_ALLOW_REMOTE environment variable is required")
+        return allow_remote.lower() == 'true'
