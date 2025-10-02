@@ -19,7 +19,7 @@ nix develop
 
 # Or manually run
 python3 init_db.py  # Initialize database
-python3 app.py      # Start server on http://localhost:1235
+python3 app.py      # Start server on http://localhost:1235 (dev) or 1234 (default)
 ```
 
 ## Core Architecture

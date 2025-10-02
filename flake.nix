@@ -93,6 +93,18 @@
         # Development shell
         devShells.default = pkgs.mkShell {
           inherit buildInputs nativeBuildInputs;
+          shellHook = ''
+            export SPACEDCODE_PORT=1235
+            echo "🚀 SpacedCode development environment"
+            echo "   Development server will run on port 1235"
+            echo "   Production service runs on port 1234"
+            echo ""
+            echo "Available commands:"
+            echo "   python3 app.py          - Start development server"
+            echo "   python3 init_db.py      - Initialize database"
+            echo "   ./run.sh                - Start with browser opening"
+            echo ""
+          '';
         };
 
         # Home Manager module

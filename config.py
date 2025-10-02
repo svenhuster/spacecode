@@ -54,7 +54,7 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Server settings
-    DEFAULT_PORT = 1235
+    DEFAULT_PORT = 1234
     DEFAULT_HOST = '127.0.0.1'
 
     # Spaced Repetition Schedule Profiles
