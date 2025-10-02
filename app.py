@@ -142,6 +142,15 @@ def create_app():
     # Set up idle monitoring middleware
     create_idle_middleware(app)
 
+    # Set up CORS headers for bookmarklet support
+    @app.after_request
+    def add_cors_headers(response):
+        """Add CORS headers to allow bookmarklet requests from LeetCode"""
+        response.headers['Access-Control-Allow-Origin'] = 'https://leetcode.com'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        return response
+
     return app
 
 
