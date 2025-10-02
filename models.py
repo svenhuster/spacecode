@@ -191,7 +191,7 @@ class ProblemStats(db.Model):
 
         self.last_rating = rating
         self.last_reviewed = datetime.utcnow()
-        self.total_reviews += 1
+        self.total_reviews = (self.total_reviews or 0) + 1
 
         # Update average rating using exponential moving average for smoother transitions
         if self.average_rating is None:
