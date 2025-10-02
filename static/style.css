@@ -631,8 +631,8 @@ body {
 
 .rating-buttons {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.75rem;
     margin-bottom: 1rem;
 }
 
@@ -641,7 +641,7 @@ body {
     flex-direction: column;
     align-items: center;
     gap: 0.5rem;
-    padding: 1rem 0.5rem;
+    padding: 0.75rem 0.25rem;
     background-color: var(--bg-tertiary);
     border: 2px solid var(--bg-quaternary);
     border-radius: var(--radius-lg);
@@ -694,6 +694,36 @@ body {
     text-align: center;
     color: var(--text-secondary);
     font-size: 0.9rem;
+}
+
+/* Session expired styles */
+.session-expired-notice {
+    background-color: rgba(255, 107, 107, 0.15);
+    border: 1px solid rgba(255, 107, 107, 0.3);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.expiry-message {
+    color: #ff6b6b;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.rating-section.session-expired {
+    border: 2px solid rgba(255, 107, 107, 0.3);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    background-color: rgba(255, 107, 107, 0.05);
+}
+
+.rating-section.session-expired h3 {
+    color: #ff6b6b;
 }
 
 .session-controls {
@@ -1406,7 +1436,8 @@ body {
     }
 
     .rating-buttons {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.5rem;
     }
 
     .session-header {

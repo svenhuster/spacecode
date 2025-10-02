@@ -178,14 +178,24 @@ def register_session_routes(app):
 
             stats.update_stats(rating)
 
+            # Check if session time has expired after this rating
+            session_expired = current_session.is_time_expired()
+
             db.session.commit()
 
-            # Return next problem URL for dynamic loading
-            return jsonify({
+            # Return response with expiry status
+            response_data = {
                 'success': True,
-                'next_url': url_for('get_next_session_problem'),
                 'message': f'Problem rated {rating}/5'
-            })
+            }
+
+            if session_expired:
+                response_data['session_expired'] = True
+                response_data['message'] = f'Problem rated {rating}/5 - session completed due to time limit'
+            else:
+                response_data['next_url'] = url_for('get_next_session_problem')
+
+            return jsonify(response_data)
 
         except Exception as e:
             db.session.rollback()
@@ -218,6 +228,13 @@ def register_session_routes(app):
 
             if not current_session:
                 return jsonify({'error': 'No active session found'}), 400
+
+            # Check if session time has expired - don't allow skipping expired sessions
+            if current_session.is_time_expired():
+                return jsonify({
+                    'error': 'Cannot skip - session time has expired. Please rate this problem to complete your session.',
+                    'session_expired': True
+                }), 400
 
             # Find the problem
             problem = Problem.query.get(problem_id)

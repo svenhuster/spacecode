@@ -10,6 +10,7 @@ let warningShown = false;
 let isLoadingNextProblem = false;
 let timerInterval = null;
 let sessionCompleted = false;
+let sessionTimeExpired = false;
 let autoOpenProblems = true;
 let totalProblems = 1; // Start with 1 problem from template
 
@@ -26,11 +27,12 @@ function updateTimer() {
     sessionTimeRemaining--;
 
     if (sessionTimeRemaining <= 0) {
-        // Time's up! Auto-complete session
-        sessionCompleted = true;
+        // Time's up! Mark as expired but allow current problem rating
+        sessionTimeExpired = true;
         clearInterval(timerInterval);
-        alert('Session time expired! Completing your session.');
-        completeSession();
+
+        // Show expired message and update UI
+        showSessionExpiredUI();
         return;
     }
 
@@ -57,6 +59,44 @@ function updateTimer() {
 }
 
 timerInterval = setInterval(updateTimer, 1000);
+
+function showSessionExpiredUI() {
+    // Update timer display to show expired
+    document.getElementById('time-remaining').textContent = '00:00';
+    document.getElementById('progress-fill').style.width = '100%';
+    document.getElementById('progress-text').textContent = '100% complete';
+    document.getElementById('progress-fill').style.backgroundColor = '#ff6b6b';
+
+    // Show expiry message
+    const currentCard = document.querySelector('.problem-card:not([style*="display: none"])');
+    if (currentCard) {
+        // Create or update expiry notice
+        let expiryNotice = currentCard.querySelector('.session-expired-notice');
+        if (!expiryNotice) {
+            expiryNotice = document.createElement('div');
+            expiryNotice.className = 'session-expired-notice';
+            expiryNotice.innerHTML = `
+                <div class="expiry-message">
+                    ⏰ <strong>Session time expired!</strong> Please rate this problem to finish your session.
+                </div>
+            `;
+            currentCard.insertBefore(expiryNotice, currentCard.querySelector('.rating-section'));
+        }
+
+        // Disable skip button but keep rating buttons enabled
+        const skipBtn = currentCard.querySelector('.skip-btn');
+        if (skipBtn) {
+            skipBtn.disabled = true;
+            skipBtn.textContent = 'Cannot skip - time expired';
+        }
+
+        // Add visual indicator to rating section
+        const ratingSection = currentCard.querySelector('.rating-section');
+        if (ratingSection) {
+            ratingSection.classList.add('session-expired');
+        }
+    }
+}
 
 // Initialize auto-open preference from localStorage
 function initializeAutoOpenSetting() {
@@ -161,6 +201,18 @@ function submitRating(rating) {
                 return;
             }
 
+            // If session time expired locally, complete after rating
+            if (sessionTimeExpired) {
+                sessionCompleted = true;
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }
+                alert('Session completed! Thank you for rating the last problem.');
+                completeSession();
+                return;
+            }
+
             nextProblem();
         } else {
             alert('Error submitting review: ' + data.error);
@@ -178,6 +230,12 @@ function submitRating(rating) {
 function skipProblem() {
     const currentCard = document.querySelector('.problem-card:not([style*="display: none"])');
     if (!currentCard) return;
+
+    // Don't allow skipping if session time has expired
+    if (sessionTimeExpired) {
+        alert('Cannot skip - session time has expired. Please rate this problem to complete your session.');
+        return;
+    }
 
     // Clear any existing flash messages when skipping a problem
     if (typeof clearFlashMessages !== 'undefined') {
