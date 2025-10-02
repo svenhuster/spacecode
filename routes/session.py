@@ -121,36 +121,60 @@ def register_session_routes(app):
     def review_problem():
         """Submit a problem review"""
         try:
+            # Log the request details for debugging
+            app.logger.info(f"Session review request - Content-Type: {request.content_type}")
+            app.logger.info(f"Session review request - Raw data: {request.get_data()}")
+
             data = request.get_json()
+            app.logger.info(f"Session review request - Parsed JSON data: {data}")
+
             if not data:
-                return jsonify({'error': 'Invalid JSON data'}), 400
+                app.logger.error("Session review failed - Invalid JSON data")
+                return jsonify({'error': 'Invalid JSON data', 'debug': 'No JSON data received'}), 400
 
             problem_id = data.get('problem_id')
             rating = data.get('rating')
             time_spent = data.get('time_spent', 0)
 
-            if problem_id is None:
-                return jsonify({'error': 'Missing problem_id'}), 400
-            if rating is None:
-                return jsonify({'error': 'Missing rating'}), 400
+            app.logger.info(f"Session review request - problem_id: {problem_id}, rating: {rating}, time_spent: {time_spent}")
 
-            problem_id = int(problem_id)
-            rating = int(rating)
-            time_spent = int(time_spent)
+            if problem_id is None:
+                app.logger.error("Session review failed - Missing problem_id")
+                return jsonify({'error': 'Missing problem_id', 'debug': f'Data received: {data}'}), 400
+            if rating is None:
+                app.logger.error("Session review failed - Missing rating")
+                return jsonify({'error': 'Missing rating', 'debug': f'Data received: {data}'}), 400
+
+            try:
+                problem_id = int(problem_id)
+                rating = int(rating)
+                time_spent = int(time_spent)
+                app.logger.info(f"Session review request - Converted values - problem_id: {problem_id}, rating: {rating}, time_spent: {time_spent}")
+            except ValueError as ve:
+                app.logger.error(f"Session review failed - Value conversion error: {ve}")
+                return jsonify({'error': 'Invalid data types', 'debug': f'Conversion error: {str(ve)}'}), 400
 
             if rating < 0 or rating > 5:
-                return jsonify({'error': 'Rating must be between 0 and 5'}), 400
+                app.logger.error(f"Session review failed - Invalid rating: {rating}")
+                return jsonify({'error': 'Rating must be between 0 and 5', 'debug': f'Rating received: {rating}'}), 400
 
             # Get current session
             current_session = None
+            session_id_from_session = session.get('current_session_id')
+            app.logger.info(f"Session review request - Session ID from Flask session: {session_id_from_session}")
+
             if 'current_session_id' in session:
                 current_session = Session.query.filter(
                     Session.id == session['current_session_id'],
                     Session.status == 'active'
                 ).first()
+                app.logger.info(f"Session review request - Found session: {current_session}")
+                if current_session:
+                    app.logger.info(f"Session review request - Session details: ID={current_session.id}, status={current_session.status}")
 
             if not current_session:
-                return jsonify({'error': 'No active session found'}), 400
+                app.logger.error("Session review failed - No active session found")
+                return jsonify({'error': 'No active session found', 'debug': f'Session ID: {session_id_from_session}'}), 400
 
             # Find the problem
             problem = Problem.query.get(problem_id)
@@ -198,8 +222,9 @@ def register_session_routes(app):
             return jsonify(response_data)
 
         except Exception as e:
+            app.logger.error(f"Session review exception: {str(e)}", exc_info=True)
             db.session.rollback()
-            return jsonify({'error': str(e)}), 500
+            return jsonify({'error': str(e), 'debug': 'Unexpected server error - check logs'}), 500
 
     @app.route('/session/skip', methods=['POST'])
     def skip_problem():
