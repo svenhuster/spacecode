@@ -19,7 +19,7 @@ nix develop
 
 # Or manually run
 python3 init_db.py  # Initialize database
-python3 app.py      # Start server on http://localhost:1234
+python3 app.py      # Start server on http://localhost:1235
 ```
 
 ## Core Architecture
@@ -112,11 +112,13 @@ python3 cleanup_duplicates.py
 
 ## Development Notes
 
-- Server runs on port 1234 by default
-- Development includes browser auto-opening to http://localhost:1234
+- Server runs on port 1235 by default (development), 1234 (production)
+- Development includes browser auto-opening to http://localhost:1235
 - Database starts empty - add problems via web interface, bookmarklet, or API
 - Database uses soft deletes (is_active flag) for problem management
 - Responsive design with mobile-first approach
 - All frontend assets are self-contained (no external CDNs except fonts)
 - never touch the prod db without permission
 - keep a version of the old sqlite db in order to test migrations when the schema is changed
+- update the default port for the development env to 1235
+this way we will avoid conflicts when testing
